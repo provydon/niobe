@@ -1,0 +1,45 @@
+# Build and deploy only the Laravel (niobe) app.
+# Use in a Cloud Build trigger with "Included files filter": niobe/**, deploy/terraform/**, cloudbuild-laravel.yaml
+
+substitutions:
+  _REGION: us-central1
+  _REPO: niobe
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build
+    args:
+      - build
+      - -f
+      - niobe/docker/Dockerfile
+      - --build-arg
+      - DEPLOYMENT_TYPE=web
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:latest'
+      - niobe
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel']
+    waitFor: ['build']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: deploy
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - niobe-web
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+    waitFor: ['push']
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:${SHORT_SHA}'

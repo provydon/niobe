@@ -1,0 +1,83 @@
+# Cloud Build: build both Laravel + Agent and deploy to Cloud Run.
+# Run: gcloud builds submit --config=cloudbuild.yaml .
+# For monorepo CI/CD (deploy only what changed), use two triggers with:
+#   cloudbuild-laravel.yaml (included files: niobe/**) and cloudbuild-agent.yaml (included files: agent/**).
+
+substitutions:
+  _REGION: us-central1
+  _REPO: niobe
+
+steps:
+  # Build Laravel (niobe) image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-laravel
+    args:
+      - build
+      - -f
+      - niobe/docker/Dockerfile
+      - --build-arg
+      - DEPLOYMENT_TYPE=web
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:latest'
+      - niobe
+
+  # Build Go agent image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-agent
+    args:
+      - build
+      - -f
+      - agent/Dockerfile
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:latest'
+      - agent
+
+  # Push both images
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push-images
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel']
+    waitFor: ['build-laravel']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push-agent
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent']
+    waitFor: ['build-agent']
+
+  # Deploy Laravel to Cloud Run (Cloud SQL and env vars set on first deploy via deploy/scripts/deploy.sh)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: deploy-laravel
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - niobe-web
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+    waitFor: ['push-images']
+
+  # Deploy Agent to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: deploy-agent
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - niobe-agent
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+    waitFor: ['push-agent']
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:${SHORT_SHA}'

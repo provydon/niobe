@@ -1,0 +1,43 @@
+# Build and deploy only the Go agent.
+# Use in a Cloud Build trigger with "Included files filter": agent/**, cloudbuild-agent.yaml
+
+substitutions:
+  _REGION: us-central1
+  _REPO: niobe
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build
+    args:
+      - build
+      - -f
+      - agent/Dockerfile
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:latest'
+      - agent
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent']
+    waitFor: ['build']
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: deploy
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - niobe-agent
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+    waitFor: ['push']
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:${SHORT_SHA}'

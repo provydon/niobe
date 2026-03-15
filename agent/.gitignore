@@ -1,0 +1,23 @@
+.env
+.env.*
+!.env.example
+
+# Build outputs
+/bin/
+/build/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Coverage and profiling
+coverage.out
+*.coverprofile
+*.prof
+
+# OS files
+.DS_Store
