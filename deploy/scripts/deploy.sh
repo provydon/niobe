@@ -99,7 +99,11 @@ if [[ "$TARGET" == "laravel" || "$TARGET" == "all" ]]; then
   echo "Pushing Laravel image..."
   docker push "$LARAVEL_IMAGE"
 
-  LARAVEL_OVERRIDE_KEYS="DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD APP_KEY SESSION_DRIVER CACHE_STORE QUEUE_CONNECTION LOG_STACK"
+  # Auto-detect Cloud Run URLs so Laravel gets correct APP_URL and VOICE_AGENT_URL (overrides .env.production)
+  APP_URL_AUTO=$(gcloud run services describe niobe-web --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)' 2>/dev/null || true)
+  VOICE_AGENT_URL_AUTO=$(gcloud run services describe niobe-agent --region="$REGION" --project="$PROJECT_ID" --format='value(status.url)' 2>/dev/null || true)
+
+  LARAVEL_OVERRIDE_KEYS="DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD APP_KEY APP_URL VOICE_AGENT_URL SESSION_DRIVER CACHE_STORE QUEUE_CONNECTION LOG_STACK"
   LARAVEL_OVERRIDES=(
     "DB_CONNECTION=pgsql"
     "DB_HOST=/cloudsql/$CONN_NAME"
@@ -113,6 +117,8 @@ if [[ "$TARGET" == "laravel" || "$TARGET" == "all" ]]; then
     "LOG_STACK=single,stderr"
   )
   [[ -n "${APP_KEY:-}" ]] && LARAVEL_OVERRIDES+=("APP_KEY=$APP_KEY")
+  [[ -n "${APP_URL_AUTO:-}" ]] && LARAVEL_OVERRIDES+=("APP_URL=$APP_URL_AUTO")
+  [[ -n "${VOICE_AGENT_URL_AUTO:-}" ]] && LARAVEL_OVERRIDES+=("VOICE_AGENT_URL=$VOICE_AGENT_URL_AUTO")
   LARAVEL_ENV_YAML="${REPO_ROOT}/deploy/.env.laravel.run.yaml"
   write_env_yaml "${REPO_ROOT}/niobe/.env.production" "$LARAVEL_ENV_YAML" "$LARAVEL_OVERRIDE_KEYS" "${LARAVEL_OVERRIDES[@]}"
 
