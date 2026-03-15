@@ -21,13 +21,25 @@ gcloud config set project YOUR_PROJECT_ID
 
 ## 2. Set environment variables
 
-From the **repo root** (parent of `niobe/`, `agent/`, `deploy/`):
+**Option A – use `.env.production` per app (recommended)**
 
 ```bash
-export GCP_PROJECT_ID=YOUR_PROJECT_ID    # e.g. niobe-hackathon
-export GCP_REGION=us-central1
-export APP_KEY=base64:your-laravel-app-key   # from niobe/.env or run: php artisan key:generate --show
+cp niobe/.env.production.example niobe/.env.production
+cp agent/.env.production.example agent/.env.production
+# Edit both: set APP_KEY, APP_URL, GEMINI_API_KEY, VOICE_AGENT_URL, etc. Do not commit (gitignored).
 ```
+
+**Option B – shell only**
+
+From the **repo root**:
+
+```bash
+export GCP_PROJECT_ID=YOUR_PROJECT_ID
+export GCP_REGION=us-central1
+export APP_KEY=base64:your-laravel-app-key   # required if not in niobe/.env.production
+```
+
+Deploy script **overrides** DB_* and Cloud Run–specific vars; everything else can live in `niobe/.env.production` and `agent/.env.production`. See **`deploy/ENV-VARS.md`**.
 
 Generate a Laravel key if needed:
 

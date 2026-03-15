@@ -1,9 +1,52 @@
 #!/usr/bin/env bash
 # Build and deploy Laravel and/or Agent. Run from repo root.
 # Usage: deploy.sh [laravel|agent|all]   (default: all)
+# Env: from niobe/.env.production and agent/.env.production if present; script overrides DB_* and Cloud Run vars.
 # Requires: docker, gcloud, Terraform applied (for repo + Cloud SQL).
 
 set -euo pipefail
+
+# Write YAML env file: .env file + overrides (override keys replace any from .env). Keys in OVERRIDE_KEYS are skipped when reading .env.
+write_env_yaml() {
+  local env_file="$1"
+  local yaml_file="$2"
+  local override_keys="$3"  # space-separated list of keys to override
+  shift 3
+  local override_pairs=("$@")  # KEY=VAL KEY2=VAL2 ...
+
+  > "$yaml_file"
+  if [[ -f "$env_file" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line%%#*}"
+      line="${line%"${line##*[![:space:]]}"}"
+      [[ -z "$line" ]] && continue
+      if [[ "$line" == *=* ]]; then
+        key="${line%%=*}"
+        key="${key%"${key##*[![:space:]]}"}"
+        # Skip if this key will be overridden
+        if [[ " $override_keys " == *" $key "* ]]; then
+          continue
+        fi
+        val="${line#*=}"
+        val="${val#"${val%%[![:space:]]*}"}"
+        val="${val%\"}"
+        val="${val#\"}"
+        val="${val//\\/\\\\}"
+        val="${val//\"/\\\"}"
+        echo "${key}: \"${val}\"" >> "$yaml_file"
+      fi
+    done < "$env_file"
+  fi
+  for pair in "${override_pairs[@]}"; do
+    if [[ "$pair" == *=* ]]; then
+      key="${pair%%=*}"
+      val="${pair#*=}"
+      val="${val//\\/\\\\}"
+      val="${val//\"/\\\"}"
+      echo "${key}: \"${val}\"" >> "$yaml_file"
+    fi
+  done
+}
 
 TARGET="${1:-all}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -56,7 +99,23 @@ if [[ "$TARGET" == "laravel" || "$TARGET" == "all" ]]; then
   echo "Pushing Laravel image..."
   docker push "$LARAVEL_IMAGE"
 
-  LARAVEL_ENV="DB_CONNECTION=pgsql,DB_HOST=/cloudsql/$CONN_NAME,DB_PORT=5432,DB_DATABASE=$DB_NAME,DB_USERNAME=$DB_USER,DB_PASSWORD=$DB_PASS,APP_KEY=${APP_KEY:-},SESSION_DRIVER=database,CACHE_STORE=database,QUEUE_CONNECTION=database,LOG_STACK=single,stderr"
+  LARAVEL_OVERRIDE_KEYS="DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD APP_KEY SESSION_DRIVER CACHE_STORE QUEUE_CONNECTION LOG_STACK"
+  LARAVEL_OVERRIDES=(
+    "DB_CONNECTION=pgsql"
+    "DB_HOST=/cloudsql/$CONN_NAME"
+    "DB_PORT=5432"
+    "DB_DATABASE=$DB_NAME"
+    "DB_USERNAME=$DB_USER"
+    "DB_PASSWORD=$DB_PASS"
+    "SESSION_DRIVER=database"
+    "CACHE_STORE=database"
+    "QUEUE_CONNECTION=database"
+    "LOG_STACK=single,stderr"
+  )
+  [[ -n "${APP_KEY:-}" ]] && LARAVEL_OVERRIDES+=("APP_KEY=$APP_KEY")
+  LARAVEL_ENV_YAML="${REPO_ROOT}/deploy/.env.laravel.run.yaml"
+  write_env_yaml "${REPO_ROOT}/niobe/.env.production" "$LARAVEL_ENV_YAML" "$LARAVEL_OVERRIDE_KEYS" "${LARAVEL_OVERRIDES[@]}"
+
   echo "Deploying Laravel to Cloud Run..."
   gcloud run deploy niobe-web \
     --image="$LARAVEL_IMAGE" \
@@ -64,8 +123,9 @@ if [[ "$TARGET" == "laravel" || "$TARGET" == "all" ]]; then
     --platform=managed \
     --allow-unauthenticated \
     --add-cloudsql-instances="$CONN_NAME" \
-    --set-env-vars="$LARAVEL_ENV" \
+    --env-vars-file="$LARAVEL_ENV_YAML" \
     --project="$PROJECT_ID"
+  rm -f "$LARAVEL_ENV_YAML"
 fi
 
 if [[ "$TARGET" == "agent" || "$TARGET" == "all" ]]; then
@@ -74,7 +134,17 @@ if [[ "$TARGET" == "agent" || "$TARGET" == "all" ]]; then
   echo "Pushing Agent image..."
   docker push "$AGENT_IMAGE"
 
-  AGENT_ENV="DB_HOST=/cloudsql/$CONN_NAME,DB_PORT=5432,DB_DATABASE=$DB_NAME,DB_USERNAME=$DB_USER,DB_PASSWORD=$DB_PASS"
+  AGENT_OVERRIDE_KEYS="DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD"
+  AGENT_OVERRIDES=(
+    "DB_HOST=/cloudsql/$CONN_NAME"
+    "DB_PORT=5432"
+    "DB_DATABASE=$DB_NAME"
+    "DB_USERNAME=$DB_USER"
+    "DB_PASSWORD=$DB_PASS"
+  )
+  AGENT_ENV_YAML="${REPO_ROOT}/deploy/.env.agent.run.yaml"
+  write_env_yaml "${REPO_ROOT}/agent/.env.production" "$AGENT_ENV_YAML" "$AGENT_OVERRIDE_KEYS" "${AGENT_OVERRIDES[@]}"
+
   echo "Deploying Agent to Cloud Run..."
   gcloud run deploy niobe-agent \
     --image="$AGENT_IMAGE" \
@@ -82,8 +152,9 @@ if [[ "$TARGET" == "agent" || "$TARGET" == "all" ]]; then
     --platform=managed \
     --allow-unauthenticated \
     --add-cloudsql-instances="$CONN_NAME" \
-    --set-env-vars="$AGENT_ENV" \
+    --env-vars-file="$AGENT_ENV_YAML" \
     --project="$PROJECT_ID"
+  rm -f "$AGENT_ENV_YAML"
 fi
 
 echo "Done."
