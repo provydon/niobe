@@ -655,6 +655,15 @@ func looksLikeConfirmation(input string) bool {
 		"put it in",
 		"add it",
 		"confirmed",
+		"yes, please",
+		"yes, go ahead",
+		"yes, go on",
+		"yes, proceed",
+		"yes, do it",
+		"yes, send it",
+		"yes, place it",
+		"yes, that's correct",
+		"yes, that is correct",
 	}
 
 	for _, phrase := range confirmationPhrases {
