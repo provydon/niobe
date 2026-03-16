@@ -59,7 +59,7 @@ resource "google_sql_database_instance" "main" {
 
     ip_configuration {
       ipv4_enabled    = true
-      require_ssl     = false
+      ssl_mode        = "ALLOW_UNENCRYPTED_AND_ENCRYPTED"
       private_network = null
     }
 
@@ -101,6 +101,86 @@ resource "google_project_iam_member" "cloudrun_sqlclient" {
   project = var.project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+}
+
+# Secret Manager: DB password for Cloud Build (so cloudbuild-with-env.yaml can deploy with env)
+resource "google_secret_manager_secret" "db_password" {
+  secret_id = "niobe-db-password"
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_secret_manager_secret_version" "db_password" {
+  secret      = google_secret_manager_secret.db_password.id
+  secret_data = random_password.db.result
+}
+
+# Laravel APP_KEY; replace the placeholder version with your key: echo -n "base64:YOUR_KEY" | gcloud secrets versions add niobe-app-key --data-file=-
+resource "google_secret_manager_secret" "app_key" {
+  secret_id = "niobe-app-key"
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_secret_manager_secret_version" "app_key_placeholder" {
+  secret      = google_secret_manager_secret.app_key.id
+  secret_data = "replace-me-with-php-artisan-key-generate--show"
+}
+
+# Grant Cloud Build service account access to secrets (for cloudbuild-with-env.yaml)
+resource "google_secret_manager_secret_iam_member" "cloudbuild_db_password" {
+  secret_id = google_secret_manager_secret.db_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+resource "google_secret_manager_secret_iam_member" "cloudbuild_app_key" {
+  secret_id = google_secret_manager_secret.app_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+# Full app env (paste .env.production content); script merges with DB_* overrides
+resource "google_secret_manager_secret" "niobe_app_env" {
+  secret_id = "niobe-app-env"
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_secret_manager_secret_version" "niobe_app_env_placeholder" {
+  secret      = google_secret_manager_secret.niobe_app_env.id
+  secret_data = "# Paste Laravel .env.production content (KEY=VALUE). DB_* and APP_KEY overridden by build."
+}
+
+resource "google_secret_manager_secret" "agent_app_env" {
+  secret_id = "agent-app-env"
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_secret_manager_secret_version" "agent_app_env_placeholder" {
+  secret      = google_secret_manager_secret.agent_app_env.id
+  secret_data = "# Paste Agent .env.production content. DB_* overridden by build."
+}
+
+resource "google_secret_manager_secret_iam_member" "cloudbuild_niobe_app_env" {
+  secret_id = google_secret_manager_secret.niobe_app_env.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+resource "google_secret_manager_secret_iam_member" "cloudbuild_agent_app_env" {
+  secret_id = google_secret_manager_secret.agent_app_env.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 }
 
 # Outputs for scripts and Cloud Build

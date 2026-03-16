@@ -26,3 +26,12 @@ variable "artifact_repo" {
   type        = string
   default     = "niobe"
 }
+
+# Full resource name of the 2nd gen Cloud Build repo (after linking in Console).
+# Example: projects/niobe-489920/locations/us-central1/connections/CONN_ID/repositories/niobe
+# Get from: gcloud builds repositories list --region=us-central1 --project=PROJECT_ID
+variable "cloud_build_repository" {
+  description = "2nd gen Cloud Build repository resource name (for trigger). Leave empty to skip creating the trigger."
+  type        = string
+  default     = ""
+}

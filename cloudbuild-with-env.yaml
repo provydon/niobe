@@ -1,0 +1,123 @@
+# Build in Cloud (no local Docker) and deploy with env vars from Secret Manager.
+# Run: gcloud builds submit --config=cloudbuild-with-env.yaml .
+# Requires: Terraform applied (secrets niobe-db-password, niobe-app-key exist); add APP_KEY to Secret Manager (see deploy/README.md).
+
+substitutions:
+  _REGION: us-central1
+  _REPO: niobe
+  # Cloud SQL connection name (default: project:region:niobe-db)
+  _CLOUD_SQL_CONNECTION_NAME: ''  # set in trigger or leave empty to derive below
+
+steps:
+  # Fetch secrets and write env YAML for Laravel and Agent
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: env-files
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -e
+        CONN_NAME="${_CLOUD_SQL_CONNECTION_NAME}"
+        if [[ -z "$$CONN_NAME" ]]; then
+          CONN_NAME="${PROJECT_ID}:${_REGION}:niobe-db"
+        fi
+        export CONN_NAME
+        export DB_USER=niobe
+        export DB_NAME=niobe
+        export DB_PASS=$(gcloud secrets versions access latest --secret=niobe-db-password --project="$PROJECT_ID")
+        APP_KEY=$(gcloud secrets versions access latest --secret=niobe-app-key --project="$PROJECT_ID" 2>/dev/null || true)
+        [[ "$$APP_KEY" == "replace-me-with-php-artisan-key-generate--show" ]] && APP_KEY=""
+        export APP_KEY
+        export APP_URL=$(gcloud run services describe niobe-web --region="${_REGION}" --project="$PROJECT_ID" --format='value(status.url)' 2>/dev/null || true)
+        export VOICE_AGENT_URL=$(gcloud run services describe niobe-agent --region="${_REGION}" --project="$PROJECT_ID" --format='value(status.url)' 2>/dev/null || true)
+        gcloud secrets versions access latest --secret=niobe-app-env --project="$PROJECT_ID" > /workspace/niobe-app-env.txt 2>/dev/null || true
+        gcloud secrets versions access latest --secret=agent-app-env --project="$PROJECT_ID" > /workspace/agent-app-env.txt 2>/dev/null || true
+        export LARAVEL_BASE_ENV_FILE=/workspace/niobe-app-env.txt
+        export AGENT_BASE_ENV_FILE=/workspace/agent-app-env.txt
+        cd /workspace
+        chmod +x deploy/scripts/write-env-yaml-for-cloudbuild.sh
+        ./deploy/scripts/write-env-yaml-for-cloudbuild.sh
+
+  # Build Laravel image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-laravel
+    args:
+      - build
+      - -f
+      - niobe/docker/Dockerfile
+      - --build-arg
+      - DEPLOYMENT_TYPE=web
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:${BUILD_ID}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:latest'
+      - niobe
+
+  # Build Agent image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-agent
+    args:
+      - build
+      - -f
+      - agent/Dockerfile
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:${BUILD_ID}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:latest'
+      - agent
+
+  # Push both
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push-laravel
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel']
+    waitFor: ['build-laravel']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push-agent
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent']
+    waitFor: ['build-agent']
+
+  # Deploy Laravel with env and Cloud SQL
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: deploy-laravel
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        CONN_NAME="${_CLOUD_SQL_CONNECTION_NAME}"
+        [[ -z "$$CONN_NAME" ]] && CONN_NAME="${PROJECT_ID}:${_REGION}:niobe-db"
+        gcloud run deploy niobe-web \
+          --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:${BUILD_ID} \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --add-cloudsql-instances="$$CONN_NAME" \
+          --env-vars-file=/workspace/laravel-env.yaml \
+          --project="$PROJECT_ID"
+    waitFor: ['env-files', 'push-laravel']
+
+  # Deploy Agent with env and Cloud SQL
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: deploy-agent
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        CONN_NAME="${_CLOUD_SQL_CONNECTION_NAME}"
+        [[ -z "$$CONN_NAME" ]] && CONN_NAME="${PROJECT_ID}:${_REGION}:niobe-db"
+        gcloud run deploy niobe-agent \
+          --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:${BUILD_ID} \
+          --region=${_REGION} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --add-cloudsql-instances="$$CONN_NAME" \
+          --env-vars-file=/workspace/agent-env.yaml \
+          --project="$PROJECT_ID"
+    waitFor: ['env-files', 'push-agent']
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/laravel:${BUILD_ID}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/agent:${BUILD_ID}'

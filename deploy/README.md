@@ -13,6 +13,7 @@ This folder contains **automated Cloud Deployment** using **scripts** and **infr
 | **`../cloudbuild.yaml`** | IaC (YAML) | Full pipeline: build both images and deploy (manual or one trigger) |
 | **`../cloudbuild-laravel.yaml`** | IaC (YAML) | Build and deploy **only Laravel** (for path-based CI/CD) |
 | **`../cloudbuild-agent.yaml`** | IaC (YAML) | Build and deploy **only Agent** (for path-based CI/CD) |
+| **`../cloudbuild-with-env.yaml`** | IaC (YAML) | **Build in Cloud** (no local Docker): fetches env from Secret Manager, deploys with DB + APP_KEY. See `DEPLOY-GCP.md`. |
 
 ## Prerequisites
 
@@ -98,6 +99,10 @@ Create **two triggers** so that pushes under `niobe/**` only build/deploy Larave
    - Use when you want to redeploy both on any change (or run manually).
 
 With this setup, the monorepo still has one repo, but each app is **deployed individually** and CI/CD runs only the pipeline for the code that changed.
+
+## Terraform and the GitHub trigger
+
+Terraform can create the **Cloud Build trigger** that runs on push to `main` (so builds pull from GitHub). The GitHub *connection* and *link repo* are done once in the Console (OAuth); then pass the repository resource name into Terraform and apply. See **`DEPLOY-GCP.md`** (section “Let Terraform create the GitHub trigger”) for the exact `gcloud` and `terraform apply` commands.
 
 ## Teardown
 
