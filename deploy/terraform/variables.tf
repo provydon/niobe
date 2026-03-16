@@ -27,11 +27,16 @@ variable "artifact_repo" {
   default     = "niobe"
 }
 
-# Full resource name of the 2nd gen Cloud Build repo (after linking in Console).
-# Example: projects/niobe-489920/locations/us-central1/connections/CONN_ID/repositories/niobe
-# Get from: gcloud builds repositories list --region=us-central1 --project=PROJECT_ID
-variable "cloud_build_repository" {
-  description = "2nd gen Cloud Build repository resource name (for trigger). Leave empty to skip creating the trigger."
+# GitHub repo URI for linking to the existing connection (e.g. https://github.com/provydon/niobe).
+# Terraform will create the repository link and trigger. Leave empty to skip trigger.
+variable "github_repo_uri" {
+  description = "GitHub repo URI (e.g. https://github.com/owner/niobe). Used to create repository link and trigger. Leave empty to skip."
   type        = string
   default     = ""
+}
+
+variable "cloud_build_connection_name" {
+  description = "Name of the 2nd gen Cloud Build connection (created in Console). Default niobe."
+  type        = string
+  default     = "niobe"
 }

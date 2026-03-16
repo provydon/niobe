@@ -132,31 +132,24 @@ This builds both images in Cloud Build, fetches DB password and APP_KEY from Sec
 
 ### Let Terraform create the GitHub trigger (optional)
 
-After you’ve linked the repo in **Cloud Build → Repositories** (2nd gen), Terraform can create the trigger so builds run on push to `main` (no `gcloud builds submit` needed).
+After you’ve created the **connection** in **Cloud Build → Connect host** (OAuth with GitHub), Terraform can **link the repo** and create the trigger so builds run on push to `main`.
 
-1. Get the 2nd gen **connection** name, then the **repository** resource name:
-   ```bash
-   # List connections (use the NAME from output, e.g. niobe)
-   gcloud builds connections list --region=us-central1 --project=niobe-489920
-
-   # List repositories for that connection (--connection is the connection NAME, not full path)
-   gcloud builds repositories list --connection=niobe --region=us-central1 --project=niobe-489920 --format="value(name)"
-   ```
-   If that lists repos, use the full `name` value. If it lists 0 items, get the full repository name from the Console: **Cloud Build → Repositories (2nd gen)** → click the repo → use the resource name shown there. It looks like:
-   `projects/niobe-489920/locations/us-central1/connections/niobe/repositories/niobe`
-
-2. Apply Terraform with that value:
+1. Apply Terraform with your GitHub repo URI (and connection name if it’s not `niobe`):
    ```bash
    cd deploy/terraform
    terraform apply -var="project_id=niobe-489920" -var="region=us-central1" \
-     -var='cloud_build_repository=projects/niobe-489920/locations/us-central1/connections/niobe/repositories/niobe'
+     -var='github_repo_uri=https://github.com/YOUR_GITHUB_USERNAME/niobe'
    cd ../..
    ```
-   (Replace the `cloud_build_repository` value with your actual repo resource name.)
+   Use your actual GitHub org/user and repo name. If your connection has a different name, add e.g. `-var='cloud_build_connection_name=your-connection-name'`.
+
+2. If Terraform reports that the repository **already exists** (you linked it in the Console), import it:
+   ```bash
+   terraform import 'google_cloudbuildv2_repository.niobe[0]' projects/niobe-489920/locations/us-central1/connections/niobe/repositories/niobe
+   ```
+   Then run `terraform apply` again.
 
 3. Pushes to `main` will run `cloudbuild-with-env.yaml`; you can also run the trigger manually from **Cloud Build → Triggers**.
-
-**Note:** The GitHub *connection* and *link repo* step still need to be done once in the Console (OAuth with GitHub). Terraform only creates the *trigger* that uses that repo.
 
 **Other Cloud Build configs**
 
