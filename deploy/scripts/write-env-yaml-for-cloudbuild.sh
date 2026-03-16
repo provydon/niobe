@@ -68,6 +68,10 @@ EOF
 [[ -n "$APP_URL" ]] && echo "APP_URL: \"$(yaml_quote "$APP_URL")\"" >> laravel-env.yaml
 [[ -n "$VOICE_AGENT_URL" ]] && echo "VOICE_AGENT_URL: \"$(yaml_quote "$VOICE_AGENT_URL")\"" >> laravel-env.yaml
 
+# Worker env: same as Laravel + DEPLOYMENT_TYPE=worker (for Cloud Run worker pool)
+cp laravel-env.yaml worker-env.yaml
+echo 'DEPLOYMENT_TYPE: "worker"' >> worker-env.yaml
+
 # Agent env: base file (if any) then overrides
 > agent-env.yaml
 if [[ -n "$AGENT_BASE_ENV_FILE" && -f "$AGENT_BASE_ENV_FILE" ]]; then
@@ -81,4 +85,4 @@ DB_USERNAME: "$DB_USER"
 DB_PASSWORD: "$(yaml_quote "$DB_PASS")"
 EOF
 
-echo "Wrote laravel-env.yaml and agent-env.yaml"
+echo "Wrote laravel-env.yaml, worker-env.yaml, and agent-env.yaml"

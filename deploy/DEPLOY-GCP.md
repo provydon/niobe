@@ -78,9 +78,10 @@ Builds Docker images, pushes to Artifact Registry, deploys to Cloud Run (with Cl
 ./deploy/scripts/deploy.sh
 ```
 
-First run can take several minutes (Docker build + push). You’ll get two URLs at the end:
+First run can take several minutes (Docker build + push). You’ll get URLs for the web and agent (the worker pool has no HTTP endpoint):
 
-- **Laravel (niobe-web)** – main app
+- **Laravel web (niobe-web)** – main app
+- **Laravel worker (niobe-worker)** – Cloud Run worker pool, same image with `DEPLOYMENT_TYPE=worker` (queue:work + schedule:work)
 - **Agent (niobe-agent)** – Go API (e.g. `/health`, `/live`)
 
 ## 6. (Optional) Allow Cloud Run to reach Cloud SQL
@@ -128,7 +129,7 @@ You can build **and** deploy with env vars entirely in GCP (no Docker on your ma
 gcloud builds submit --config=cloudbuild-with-env.yaml .
 ```
 
-This builds both images in Cloud Build, fetches DB password and APP_KEY from Secret Manager, writes env YAML, and deploys to Cloud Run with `--add-cloudsql-instances` and `--env-vars-file`. No local Docker required.
+This builds both images in Cloud Build, fetches DB password and APP_KEY from Secret Manager, writes env YAML, and deploys to Cloud Run: **niobe-web** (service), **niobe-worker** (worker pool, same Laravel image with `DEPLOYMENT_TYPE=worker`), and **niobe-agent** (Go), all with `--add-cloudsql-instances` and `--env-vars-file`. No local Docker required.
 
 ### Let Terraform create the GitHub trigger (optional)
 
