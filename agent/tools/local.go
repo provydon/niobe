@@ -18,26 +18,29 @@ import (
 
 // LocalNiobeTools implements tool definitions and execution in-process using the DB (no Laravel HTTP calls).
 type LocalNiobeTools struct {
-	waitress    *store.Waitress
-	definitions []Definition
-	byName      map[string]Definition
-	db          *sql.DB
-	cfg         *config.Config
+	waitress      *store.Waitress
+	definitions   []Definition
+	byName        map[string]Definition
+	db            *sql.DB
+	cfg           *config.Config
+	tableFromURL  string // table number from talk URL (?table=5), used when model doesn't pass table_number
 }
 
 // NewLocalNiobeTools builds definitions from the Waitress and returns an executor that runs actions locally.
-func NewLocalNiobeTools(waitress *store.Waitress, db *sql.DB, cfg *config.Config) *LocalNiobeTools {
+// tableFromURL is the table query param from the talk page (e.g. "5"); stored so we can save it on the order when the model omits it.
+func NewLocalNiobeTools(waitress *store.Waitress, db *sql.DB, cfg *config.Config, tableFromURL string) *LocalNiobeTools {
 	defs := BuildDefinitions(waitress)
 	byName := make(map[string]Definition, len(defs))
 	for _, d := range defs {
 		byName[d.Name] = d
 	}
 	return &LocalNiobeTools{
-		waitress:    waitress,
-		definitions: defs,
-		byName:      byName,
-		db:          db,
-		cfg:         cfg,
+		waitress:     waitress,
+		definitions:  defs,
+		byName:       byName,
+		db:           db,
+		cfg:          cfg,
+		tableFromURL: strings.TrimSpace(tableFromURL),
 	}
 }
 
@@ -153,6 +156,9 @@ func (n *LocalNiobeTools) Execute(ctx context.Context, toolName string, argument
 		}
 		if orderSummary != "" {
 			tableNum := strings.TrimSpace(strAny(args["table_number"]))
+			if tableNum == "" && n.tableFromURL != "" {
+				tableNum = n.tableFromURL
+			}
 			customerName := strings.TrimSpace(strAny(args["customer_name"]))
 			var tableNumVal, customerNameVal any = nil, nil
 			if tableNum != "" {

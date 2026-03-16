@@ -56,12 +56,11 @@ func Live(connector live.Connector, cfg live.Config, waitresses *store.WaitressR
 				return
 			}
 
+			tableFromURL := strings.TrimSpace(r.URL.Query().Get("table"))
 			if len(waitress.Tools) > 0 {
-				toolExecutor = tools.NewLocalNiobeTools(waitress, db, appCfg)
+				toolExecutor = tools.NewLocalNiobeTools(waitress, db, appCfg, tableFromURL)
 				sessionCfg.Tools = tools.ToGenAITools(toolExecutor.Definitions())
 			}
-
-				tableFromURL := strings.TrimSpace(r.URL.Query().Get("table"))
 			sessionCfg.SystemInstruction = buildNiobeInstruction(waitress, toolExecutor, tableFromURL)
 		}
 

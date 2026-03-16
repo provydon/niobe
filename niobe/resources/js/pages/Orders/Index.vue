@@ -45,14 +45,6 @@ function formatSentAt(iso: string): string {
     });
 }
 
-function customerLabel(order: Order): string {
-    const table = order.table_number?.trim();
-    const name = order.customer_name?.trim();
-    if (table && name) return `Table ${table} · ${name}`;
-    if (table) return `Table ${table}`;
-    if (name) return name;
-    return '—';
-}
 </script>
 
 <template>
@@ -86,6 +78,9 @@ function customerLabel(order: Order): string {
                                     Waitress
                                 </th>
                                 <th class="px-4 py-3 font-medium text-foreground">
+                                    Table
+                                </th>
+                                <th class="px-4 py-3 font-medium text-foreground">
                                     Customer
                                 </th>
                                 <th class="px-4 py-3 font-medium text-foreground">
@@ -113,8 +108,11 @@ function customerLabel(order: Order): string {
                                         {{ order.waitress?.name ?? '—' }}
                                     </Link>
                                 </td>
+                                <td class="px-4 py-3 font-medium text-foreground">
+                                    {{ order.table_number ?? '—' }}
+                                </td>
                                 <td class="px-4 py-3 text-muted-foreground">
-                                    {{ customerLabel(order) }}
+                                    {{ order.customer_name ?? '—' }}
                                 </td>
                                 <td class="px-4 py-3 text-muted-foreground">
                                     {{ order.sent_to }}
