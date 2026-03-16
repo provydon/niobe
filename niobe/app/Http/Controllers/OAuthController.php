@@ -28,12 +28,17 @@ class OAuthController extends Controller
             $user = User::where('email', $socialUser->getEmail())->first();
 
             if ($user) {
-                $user->update([$provider.'_id' => $socialUser->getId()]);
+                $updates = [$provider.'_id' => $socialUser->getId()];
+                if ($user->email_verified_at === null) {
+                    $updates['email_verified_at'] = now();
+                }
+                $user->update($updates);
             } else {
                 $user = $this->createUser($socialUser, $provider);
             }
 
-            Auth::login($user);
+            Auth::login($user, true);
+            $request->session()->regenerate();
 
             return redirect()->intended(route('dashboard'));
         } catch (Exception $e) {
@@ -50,6 +55,7 @@ class OAuthController extends Controller
             'email' => $socialUser->getEmail(),
             $provider.'_id' => $socialUser->getId(),
             'password' => bcrypt(Str::random(32)),
+            'email_verified_at' => now(), // Provider has verified the email
         ]);
     }
 }
