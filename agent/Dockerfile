@@ -2,7 +2,7 @@
 # Build: docker build -f Dockerfile -t niobe-agent .
 # Cloud Run sets PORT; DB is via Cloud SQL connector (/cloudsql/INSTANCE).
 
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
