@@ -45,7 +45,7 @@ env_to_yaml() {
 
 # APP_KEY can come from base env; we add it from variable (secret) at end so secret overrides
 LARAVEL_OVERRIDE_KEYS="DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD APP_URL VOICE_AGENT_URL SESSION_DRIVER CACHE_STORE QUEUE_CONNECTION LOG_STACK"
-AGENT_OVERRIDE_KEYS="DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD"
+AGENT_OVERRIDE_KEYS="DATABASE_URL DB_URL"
 
 # Laravel env: base file (if any) then overrides
 > laravel-env.yaml
@@ -72,17 +72,13 @@ EOF
 cp laravel-env.yaml worker-env.yaml
 echo 'DEPLOYMENT_TYPE: "worker"' >> worker-env.yaml
 
-# Agent env: base file (if any) then overrides
+# Agent env: base file (if any) then overrides. Agent uses a single DATABASE_URL.
 > agent-env.yaml
 if [[ -n "$AGENT_BASE_ENV_FILE" && -f "$AGENT_BASE_ENV_FILE" ]]; then
   env_to_yaml "$AGENT_BASE_ENV_FILE" "$AGENT_OVERRIDE_KEYS" >> agent-env.yaml
 fi
-cat >> agent-env.yaml << EOF
-DB_HOST: "/cloudsql/$CONN_NAME"
-DB_PORT: "5432"
-DB_DATABASE: "$DB_NAME"
-DB_USERNAME: "$DB_USER"
-DB_PASSWORD: "$(yaml_quote "$DB_PASS")"
-EOF
+# PostgreSQL URL for Cloud SQL Unix socket (host param = connection name)
+AGENT_DATABASE_URL="postgres://${DB_USER}:${DB_PASS}@/${DB_NAME}?host=/cloudsql/${CONN_NAME}"
+echo "DATABASE_URL: \"$(yaml_quote "$AGENT_DATABASE_URL")\"" >> agent-env.yaml
 
 echo "Wrote laravel-env.yaml, worker-env.yaml, and agent-env.yaml"

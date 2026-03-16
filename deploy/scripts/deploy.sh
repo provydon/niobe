@@ -140,13 +140,11 @@ if [[ "$TARGET" == "agent" || "$TARGET" == "all" ]]; then
   echo "Pushing Agent image..."
   docker push "$AGENT_IMAGE"
 
-  AGENT_OVERRIDE_KEYS="DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD"
+  # Agent uses a single DATABASE_URL (PostgreSQL URL; Cloud SQL socket via host param)
+  AGENT_DATABASE_URL="postgres://${DB_USER}:${DB_PASS}@/${DB_NAME}?host=/cloudsql/${CONN_NAME}"
+  AGENT_OVERRIDE_KEYS="DATABASE_URL DB_URL"
   AGENT_OVERRIDES=(
-    "DB_HOST=/cloudsql/$CONN_NAME"
-    "DB_PORT=5432"
-    "DB_DATABASE=$DB_NAME"
-    "DB_USERNAME=$DB_USER"
-    "DB_PASSWORD=$DB_PASS"
+    "DATABASE_URL=$AGENT_DATABASE_URL"
   )
   AGENT_ENV_YAML="${REPO_ROOT}/deploy/.env.agent.run.yaml"
   write_env_yaml "${REPO_ROOT}/agent/.env.production" "$AGENT_ENV_YAML" "$AGENT_OVERRIDE_KEYS" "${AGENT_OVERRIDES[@]}"

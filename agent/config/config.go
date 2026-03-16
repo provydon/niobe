@@ -9,17 +9,12 @@ import (
 // Config holds application configuration loaded from the environment.
 // Single responsibility: configuration only.
 type Config struct {
-	APIKey      string
-	Port        string
+	APIKey       string
+	Port         string
 	UseVertex   bool
 	LaravelURL  string
 	AgentSecret string
-	DBHost      string
-	DBPort      string
-	DBName      string
-	DBUser      string
-	DBPassword  string
-	DBSSLMode   string
+	DatabaseURL string // required: PostgreSQL connection URL (DATABASE_URL or DB_URL)
 	// SMTP for sending tool emails (e.g. order notifications)
 	MailHost     string
 	MailPort     string
@@ -44,23 +39,9 @@ func Load() Config {
 		laravelURL = "http://localhost:8000"
 	}
 	laravelURL = normalizeLaravelURL(laravelURL)
-	dbHost := os.Getenv("DB_HOST")
-	if dbHost == "" {
-		dbHost = "127.0.0.1"
-	}
-	dbPort := os.Getenv("DB_PORT")
-	if dbPort == "" {
-		dbPort = "5432"
-	}
-	dbName := os.Getenv("DB_DATABASE")
-	if dbName == "" {
-		dbName = "niobe"
-	}
-	dbUser := os.Getenv("DB_USERNAME")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbSSLMode := os.Getenv("DB_SSLMODE")
-	if dbSSLMode == "" {
-		dbSSLMode = "disable"
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = os.Getenv("DB_URL")
 	}
 	useVertex := os.Getenv("GOOGLE_GENAI_USE_VERTEXAI") == "True" ||
 		os.Getenv("GOOGLE_GENAI_USE_VERTEXAI") == "true"
@@ -78,12 +59,7 @@ func Load() Config {
 		UseVertex:    useVertex,
 		LaravelURL:   laravelURL,
 		AgentSecret:  os.Getenv("AGENT_SHARED_SECRET"),
-		DBHost:       dbHost,
-		DBPort:       dbPort,
-		DBName:       dbName,
-		DBUser:       dbUser,
-		DBPassword:   dbPassword,
-		DBSSLMode:    dbSSLMode,
+		DatabaseURL:  dbURL,
 		MailHost:     mailHost,
 		MailPort:     mailPort,
 		MailUser:     os.Getenv("MAIL_USERNAME"),
@@ -99,13 +75,9 @@ func (c Config) GetAPIKey() string { return c.APIKey }
 // GetUseVertex returns whether Vertex AI is used so Config can satisfy live.Config.
 func (c Config) GetUseVertex() bool { return c.UseVertex }
 
+// DatabaseDSN returns the PostgreSQL connection URL (DATABASE_URL or DB_URL). Must be set.
 func (c Config) DatabaseDSN() string {
-	return "host=" + c.DBHost +
-		" port=" + c.DBPort +
-		" dbname=" + c.DBName +
-		" user=" + c.DBUser +
-		" password=" + c.DBPassword +
-		" sslmode=" + c.DBSSLMode
+	return c.DatabaseURL
 }
 
 func normalizeLaravelURL(raw string) string {
