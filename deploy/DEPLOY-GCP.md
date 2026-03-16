@@ -84,7 +84,35 @@ First run can take several minutes (Docker build + push). You’ll get URLs for 
 - **Laravel worker (niobe-worker)** – Cloud Run worker pool, same image with `DEPLOYMENT_TYPE=worker` (queue:work + schedule:work)
 - **Agent (niobe-agent)** – Go API (e.g. `/health`, `/live`)
 
-## 6. (Optional) Allow Cloud Run to reach Cloud SQL
+## 6. (Optional) Custom domains (e.g. niobe.live, agent.niobe.live)
+
+To serve the web app and agent on your own domain:
+
+1. **Verify domain ownership** in Google Cloud (required before mapping):
+   - In **Cloud Console** go to **Cloud Run** → **Domain mappings** (or **APIs & Services** → **Domain verification**).
+   - Add and verify **niobe.live** and **agent.niobe.live** (e.g. via DNS TXT record or HTML file as instructed).
+
+2. **Apply Terraform** with the custom domain variables (services **niobe-web** and **niobe-agent** must already exist from a prior deploy):
+   ```bash
+   cd deploy/terraform
+   terraform apply \
+     -var="project_id=$GCP_PROJECT_ID" \
+     -var="region=$GCP_REGION" \
+     -var='github_repo_uri=https://github.com/provydon/niobe' \
+     -var='custom_domain_web=niobe.live' \
+     -var='custom_domain_agent=agent.niobe.live'
+   ```
+
+3. **Configure DNS** at your registrar for **niobe.live** and **agent.niobe.live**:
+   - After the domain mapping is created, Cloud Run shows the required **CNAME** (or **A**) target (e.g. `ghs.googlehosted.com` or a run.app redirect).
+   - In **Cloud Run** → **Domain mappings**, open each mapping and follow the **DNS records** instructions.
+   - Point each domain (and optionally `www.niobe.live`) to the given target.
+
+4. **Set APP_URL / VOICE_AGENT_URL** so Laravel and the agent use the custom URLs: in Secret Manager (**niobe-app-env** / **agent-app-env**) or in your next deploy, set `APP_URL=https://niobe.live` and ensure the Laravel app and agent know the agent URL (e.g. `VOICE_AGENT_URL=https://agent.niobe.live`). Re-deploy or update env so the apps use these URLs.
+
+To skip custom domains, omit the `custom_domain_web` and `custom_domain_agent` variables (default is empty).
+
+## 7. (Optional) Allow Cloud Run to reach Cloud SQL
 
 If you used Terraform’s Cloud SQL with **public IP**, ensure the Cloud Run service account can connect. If you see connection errors:
 
@@ -94,14 +122,14 @@ If you used Terraform’s Cloud SQL with **public IP**, ensure the Cloud Run ser
 
 Terraform does not set this by default; you can add it in `deploy/terraform/main.tf` or via Console.
 
-## 7. Later: redeploy only one app
+## 8. Later: redeploy only one app
 
 ```bash
 ./deploy/scripts/deploy.sh laravel   # only Laravel
 ./deploy/scripts/deploy.sh agent    # only Agent
 ```
 
-## Alternative: build in Cloud with env (no local Docker)
+## Alternative: build in Cloud with env (Cloud Build) (no local Docker)
 
 You can build **and** deploy with env vars entirely in GCP (no Docker on your machine). Terraform creates Secret Manager secrets for the DB password and Laravel APP_KEY; Cloud Build reads them and deploys with `--env-vars-file` and Cloud SQL.
 

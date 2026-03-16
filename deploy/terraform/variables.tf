@@ -40,3 +40,17 @@ variable "cloud_build_connection_name" {
   type        = string
   default     = "niobe"
 }
+
+# Custom domains for Cloud Run (optional). Leave empty to skip domain mapping.
+# You must verify domain ownership in GCP (Console → Cloud Run → Domain mappings or Webmaster Central) before apply.
+variable "custom_domain_web" {
+  description = "Custom domain for the Laravel web service (e.g. niobe.live). Leave empty to skip."
+  type        = string
+  default     = ""
+}
+
+variable "custom_domain_agent" {
+  description = "Custom domain for the Agent service (e.g. agent.niobe.live). Leave empty to skip."
+  type        = string
+  default     = ""
+}
