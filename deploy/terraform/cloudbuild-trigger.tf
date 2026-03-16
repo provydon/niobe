@@ -18,10 +18,9 @@ resource "google_cloudbuildv2_repository" "niobe" {
 resource "google_cloudbuild_trigger" "deploy_niobe" {
   count = var.github_repo_uri != "" ? 1 : 0
 
-  name             = "deploy-niobe-with-env"
-  location         = var.region
-  project          = var.project_id
-  service_account  = "projects/${var.project_id}/serviceAccounts/${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+  name     = "deploy-niobe-with-env"
+  location = var.region
+  project  = var.project_id
 
   repository_event_config {
     repository = google_cloudbuildv2_repository.niobe[0].id
@@ -31,16 +30,19 @@ resource "google_cloudbuild_trigger" "deploy_niobe" {
   }
 
   filename = "cloudbuild-with-env.yaml"
+
+  lifecycle {
+    ignore_changes = [service_account]
+  }
 }
 
 # Trigger: build and deploy only Laravel (run when niobe/** or config changes, or run manually)
 resource "google_cloudbuild_trigger" "deploy_laravel_only" {
   count = var.github_repo_uri != "" ? 1 : 0
 
-  name             = "deploy-laravel-only"
-  location         = var.region
-  project          = var.project_id
-  service_account  = "projects/${var.project_id}/serviceAccounts/${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+  name     = "deploy-laravel-only"
+  location = var.region
+  project  = var.project_id
 
   repository_event_config {
     repository = google_cloudbuildv2_repository.niobe[0].id
@@ -51,16 +53,19 @@ resource "google_cloudbuild_trigger" "deploy_laravel_only" {
 
   included_files = ["niobe/**", "cloudbuild-laravel.yaml"]
   filename       = "cloudbuild-laravel.yaml"
+
+  lifecycle {
+    ignore_changes = [service_account]
+  }
 }
 
 # Trigger: build and deploy only Agent (run when agent/** or config changes, or run manually)
 resource "google_cloudbuild_trigger" "deploy_agent_only" {
   count = var.github_repo_uri != "" ? 1 : 0
 
-  name             = "deploy-agent-only"
-  location         = var.region
-  project          = var.project_id
-  service_account  = "projects/${var.project_id}/serviceAccounts/${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+  name     = "deploy-agent-only"
+  location = var.region
+  project  = var.project_id
 
   repository_event_config {
     repository = google_cloudbuildv2_repository.niobe[0].id
@@ -71,6 +76,10 @@ resource "google_cloudbuild_trigger" "deploy_agent_only" {
 
   included_files = ["agent/**", "cloudbuild-agent.yaml"]
   filename       = "cloudbuild-agent.yaml"
+
+  lifecycle {
+    ignore_changes = [service_account]
+  }
 }
 
 output "cloud_build_trigger_id" {
