@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
-use Laravel\Ai\Files\Document;
 use Laravel\Ai\AnonymousAgent;
 use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Files\Document;
 
 class ContextExtractionService
 {

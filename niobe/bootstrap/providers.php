@@ -1,10 +1,11 @@
 <?php
 
 use App\Providers\AppServiceProvider;
+use App\Providers\ForceHttpsServiceProvider;
 use App\Providers\FortifyServiceProvider;
 
 return [
     AppServiceProvider::class,
     FortifyServiceProvider::class,
-    App\Providers\ForceHttpsServiceProvider::class,
+    ForceHttpsServiceProvider::class,
 ];

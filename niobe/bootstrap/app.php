@@ -3,10 +3,15 @@
 use App\Http\Middleware\ForceHttpsMiddleware;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -36,21 +41,21 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('api/*') || $request->expectsJson()) {
                 $status = method_exists($e, 'getStatusCode') ? $e->getStatusCode() : 500;
 
-                if ($e instanceof \Illuminate\Validation\ValidationException) {
+                if ($e instanceof ValidationException) {
                     return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
                 }
                 if ($e instanceof AuthenticationException) {
                     return response()->json(['message' => $e->getMessage() ?: 'Unauthenticated.'], 401);
                 }
-                if ($e instanceof \Illuminate\Auth\Access\AuthorizationException) {
+                if ($e instanceof AuthorizationException) {
                     return response()->json(['message' => $e->getMessage() ?: 'Unauthorized.'], 403);
                 }
-                if ($e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
-                    || $e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException
+                if ($e instanceof NotFoundHttpException
+                    || $e instanceof ModelNotFoundException
                 ) {
                     return response()->json(['message' => 'Resource not found.'], 404);
                 }
-                if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpException) {
+                if ($e instanceof HttpException) {
                     return response()->json([
                         'message' => $e->getMessage() ?: 'An error occurred.',
                     ], $status);

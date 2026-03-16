@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\ExtractMenuJob;
-use App\Jobs\ExtractWaitressContext;
-use App\Models\MenuItem;
 use App\Models\Waitress;
 use App\Services\ContextExtractionService;
 use App\Services\MenuExtractionService;
