@@ -79,6 +79,12 @@ func receiveFromModel(c *websocket.Conn, session live.Session, toolExecutor Tool
 				log.Printf("[live] session ended (model closed stream)")
 			} else {
 				log.Printf("[live] receive from model: %v", err)
+				// Notify client so UI can show a message instead of silent disconnect
+				errMsg := "Connection to the voice service was lost. Please try again."
+				if strings.Contains(err.Error(), "1011") || strings.Contains(err.Error(), "internal") {
+					errMsg = "Voice service had a temporary error. Please try again."
+				}
+				writeJSON(c, map[string]any{"error": errMsg})
 			}
 			return
 		}

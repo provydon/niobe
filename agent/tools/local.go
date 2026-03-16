@@ -155,11 +155,11 @@ func (n *LocalNiobeTools) Execute(ctx context.Context, toolName string, argument
 			orderSummary = strings.TrimSpace(strAny(args["subject"]))
 		}
 		if orderSummary != "" {
-			tableNum := strings.TrimSpace(strAny(args["table_number"]))
+			tableNum := strFromAny(args["table_number"])
 			if tableNum == "" && n.tableFromURL != "" {
 				tableNum = n.tableFromURL
 			}
-			customerName := strings.TrimSpace(strAny(args["customer_name"]))
+			customerName := strFromAny(args["customer_name"])
 			var tableNumVal, customerNameVal any = nil, nil
 			if tableNum != "" {
 				tableNumVal = tableNum
@@ -290,6 +290,17 @@ func strAny(v any) string {
 	}
 	s, _ := v.(string)
 	return s
+}
+
+// strFromAny returns a string from any value (number, string, etc.) so table_number/customer_name are saved even if the API sends a number.
+func strFromAny(v any) string {
+	if v == nil {
+		return ""
+	}
+	if s, ok := v.(string); ok {
+		return strings.TrimSpace(s)
+	}
+	return strings.TrimSpace(fmt.Sprint(v))
 }
 
 func validateArguments(def Definition, arguments map[string]any) error {
