@@ -45,7 +45,8 @@ env_to_yaml() {
 
 # APP_KEY can come from base env; we add it from variable (secret) at end so secret overrides
 LARAVEL_OVERRIDE_KEYS="DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD APP_URL VOICE_AGENT_URL SESSION_DRIVER CACHE_STORE QUEUE_CONNECTION LOG_STACK"
-AGENT_OVERRIDE_KEYS="DATABASE_URL DB_URL"
+# PORT is reserved by Cloud Run; never pass it in agent-env.yaml (Cloud Run sets PORT=8080)
+AGENT_OVERRIDE_KEYS="DATABASE_URL DB_URL PORT"
 
 # Laravel env: base file (if any) then overrides
 > laravel-env.yaml
