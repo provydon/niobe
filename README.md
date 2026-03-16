@@ -10,6 +10,37 @@
 | **`agent/`** | Go voice-agent service: live voice sessions, menu-aware ordering, connects to Laravel/DB. |
 | **`deploy/`** | Deployment automation: Terraform (GCP), scripts, Cloud Build configs. See [deploy/README.md](deploy/README.md). |
 
+## Architecture
+
+How **Gemini** connects to the backend, database, and frontend:
+
+```
+┌─────────────┐     HTTPS      ┌──────────────────┐     Gemini API      ┌─────────────┐
+│   Browser   │ ──────────────►│  Niobe (Laravel) │ ──────────────────► │   Gemini    │
+│  (Vue/Inertia)               │  + menu extract  │                     │ (menu from  │
+└──────┬──────┘                └────────┬─────────┘                     │  images)    │
+       │                                │                                └─────────────┘
+       │ WebSocket /live?niobe=slug     │
+       ▼                                ▼
+┌──────────────────┐            ┌──────────────┐
+│  Voice Agent     │◄──────────►│  PostgreSQL  │
+│  (Go)            │   read/    └──────────────┘
+│  Proxy ◄───────► │   write
+│  Gemini Live     │
+└────────┬─────────┘
+         │ real-time audio + tool calls
+         ▼
+┌─────────────────┐
+│  Gemini Live    │
+│  (voice model)  │
+└─────────────────┘
+```
+
+- **Laravel** uses **Gemini API** for menu extraction from uploaded images; data is stored in **PostgreSQL**.
+- **Agent** uses **Gemini Live API** for voice; it reads waitress/menu from **PostgreSQL** and runs tools (orders, email, webhooks) in-process, writing back to the same DB.
+
+Full diagram and data flows: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## Prerequisites
 
 - **Niobe (web):** PHP ≥ 8.2, Composer, Node.js 22+, npm. For tests: in-memory SQLite (no DB setup).
