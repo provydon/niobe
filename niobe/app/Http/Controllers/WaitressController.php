@@ -11,6 +11,8 @@ use App\Services\MenuExtractionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -110,7 +112,7 @@ class WaitressController extends Controller
 
     public function store(Request $request): RedirectResponse|JsonResponse
     {
-        $validated =         $request->merge([
+        $request->merge([
             'tables_count' => is_numeric($request->input('tables_count')) ? (int) $request->input('tables_count') : null,
         ]);
         $validated = $request->validate([
@@ -119,7 +121,7 @@ class WaitressController extends Controller
             'actions.*.type' => ['required', 'string', Rule::in(self::ACTION_TYPES)],
             'actions.*.name' => ['required', 'string', 'max:255'],
             'actions.*.target' => ['required', 'string', 'max:2048'],
-            'menu_files' => ['required', 'array', 'min:1', 'max:10'],
+            'menu_files' => ['sometimes', 'nullable', 'array', 'max:10'],
             'menu_files.*' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp'],
             'tables_count' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ]);
@@ -140,11 +142,25 @@ class WaitressController extends Controller
         ]);
 
         $paths = [];
-        foreach ($request->file('menu_files') as $file) {
-            $paths[] = $file->store("waitresses/{$waitress->id}/menu-extraction", 'local');
+        $menuFiles = $request->file('menu_files', []);
+        if (count($menuFiles) > 0) {
+            foreach ($menuFiles as $file) {
+                $paths[] = $file->store("waitresses/{$waitress->id}/menu-extraction", 'local');
+            }
+        } else {
+            $defaultMenuPath = public_path('menus/jays.jpeg');
+            if (File::isFile($defaultMenuPath)) {
+                $paths[] = Storage::disk('local')->putFileAs(
+                    "waitresses/{$waitress->id}/menu-extraction",
+                    new \Illuminate\Http\File($defaultMenuPath),
+                    'jays.jpeg'
+                );
+            }
         }
 
-        ExtractMenuJob::dispatch($waitress->id, $paths);
+        if (count($paths) > 0) {
+            ExtractMenuJob::dispatch($waitress->id, $paths);
+        }
 
         $message = __('Waitress created. Menu is being extracted and will appear shortly.');
 

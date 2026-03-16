@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Waitress;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,7 +27,7 @@ class PublicNiobeController extends Controller
         ]);
     }
 
-    public function talk(string $slug): Response
+    public function talk(Request $request, string $slug): Response
     {
         $waitress = Waitress::with('menuItems')->where('slug', $slug)->firstOrFail();
 
@@ -42,6 +43,8 @@ class PublicNiobeController extends Controller
             'unit_price' => (string) $item->unit_price,
         ])->all();
 
+        $tableNumber = $request->query('table');
+
         return Inertia::render('Niobe/Talk', [
             'niobe' => [
                 'name' => $waitress->name,
@@ -52,6 +55,7 @@ class PublicNiobeController extends Controller
                 'menu_image_urls' => $menuImageUrls,
                 'menu_currency' => $waitress->menu_currency,
             ],
+            'tableNumber' => $tableNumber ? (string) $tableNumber : null,
             'voiceAgentWebsocketUrl' => $this->voiceAgentWebsocketUrl($waitress->slug),
         ]);
     }

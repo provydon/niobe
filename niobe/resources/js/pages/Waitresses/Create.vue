@@ -103,7 +103,7 @@ function normalizeErrors(errorBag: Record<string, string[] | string>): Record<st
 }
 
 async function submit() {
-    if (!formRef.value || menuFileEntries.value.length === 0) {
+    if (!formRef.value) {
         return;
     }
     processing.value = true;
@@ -113,6 +113,7 @@ async function submit() {
     try {
         const formData = new FormData(formRef.value);
         menuFileEntries.value.forEach((e) => formData.append('menu_files[]', e.file));
+        // If no files, backend uses default menu image (public/menus/jays.jpeg) for testers
         await api.post(toUrl(waitressesStore.url()), formData);
         router.visit(toUrl(waitressesIndex()));
     } catch (error: any) {
@@ -211,6 +212,9 @@ async function submit() {
                             </div>
                         </div>
                         <InputError :message="errors['menu_files']" />
+                        <p class="text-xs text-muted-foreground">
+                            Leave empty to use the sample menu (jays.jpeg) for testing.
+                        </p>
                     </div>
 
                     <WaitressActionsInput
@@ -243,7 +247,7 @@ async function submit() {
                     </p>
 
                     <div class="mt-10 flex justify-center">
-                        <Button type="submit" :disabled="processing || menuFileEntries.length === 0" class="min-h-[44px] w-full rounded-xl px-8 py-3 sm:min-h-0 sm:w-auto sm:min-w-[200px]">
+                        <Button type="submit" :disabled="processing" class="min-h-[44px] w-full rounded-xl px-8 py-3 sm:min-h-0 sm:w-auto sm:min-w-[200px]">
                             <Spinner v-if="processing" class="mr-2 h-4 w-4" />
                             Create
                         </Button>

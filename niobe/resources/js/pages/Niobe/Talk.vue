@@ -19,6 +19,7 @@ interface NiobeTalkProps {
         menu_currency?: string | null;
     };
     voiceAgentWebsocketUrl: string;
+    tableNumber?: string | null;
 }
 
 interface ToolEvent {
@@ -817,6 +818,9 @@ onBeforeUnmount(disconnect);
 
             <p class="mt-5 text-sm leading-relaxed text-[#a1a1aa]">
                 Allow microphone, then talk. Your waitress replies with voice.
+            </p>
+            <p class="mt-2 text-lg font-bold text-[#e4e4e7]">
+                Table number: 1
             </p>
 
             <div class="mt-8 flex flex-wrap items-center gap-4 text-sm">
