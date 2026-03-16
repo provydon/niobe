@@ -1,6 +1,6 @@
 # Niobe
 
-**AI waitress for restaurants.** Upload your menu, share one link. Customers talk to your waitress, have a conversation and order by voice.
+**AI waitress for restaurants.** Upload your menu, Share the link. Customers talk to your waitress, have a conversation and order by voice.
 
 ## Repository structure
 
@@ -70,6 +70,12 @@ In another terminal, run the dev server for frontend assets:
 
 ```bash
 cd niobe && npm run dev
+```
+
+**Important for testers:** Menu extraction (AI pulling items from uploaded menu images) runs in the **queue**. You must start a queue worker in a separate terminal, or extraction will never finish and the “Extracting menu…” state will not resolve:
+
+```bash
+cd niobe && php artisan queue:work
 ```
 
 Web app: **http://localhost:8000**

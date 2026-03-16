@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Loader2 } from 'lucide-vue-next';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 interface MenuItemRow {
@@ -14,6 +15,7 @@ interface NiobeTalkProps {
         context: string;
         menu?: string;
         share_url: string;
+        slug: string;
         menu_items?: MenuItemRow[];
         menu_image_urls?: string[];
         menu_currency?: string | null;
@@ -66,6 +68,37 @@ const menuPage = ref(1);
 const menuPageSize = 10;
 
 const allMenuItems = computed(() => props.niobe.menu_items ?? []);
+const menuExtracting = ref(allMenuItems.value.length === 0);
+let menuPollInterval: ReturnType<typeof setInterval> | null = null;
+const MENU_POLL_INTERVAL_MS = 2500;
+const MENU_POLL_MAX_ATTEMPTS = 48;
+let menuPollAttempts = 0;
+
+async function pollMenuStatus() {
+    menuPollAttempts += 1;
+    if (menuPollAttempts > MENU_POLL_MAX_ATTEMPTS) {
+        if (menuPollInterval != null) {
+            clearInterval(menuPollInterval);
+            menuPollInterval = null;
+        }
+        menuExtracting.value = false;
+        return;
+    }
+    try {
+        const res = await fetch(`/n/${props.niobe.slug}/menu-status`, { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.menu_items_count > 0) {
+            if (menuPollInterval != null) {
+                clearInterval(menuPollInterval);
+                menuPollInterval = null;
+            }
+            menuExtracting.value = false;
+            router.reload();
+        }
+    } catch {
+        // keep polling
+    }
+}
 const filteredMenuItems = computed(() => {
     const q = menuSearchQuery.value.trim().toLowerCase();
     if (!q) return allMenuItems.value;
@@ -654,9 +687,17 @@ onMounted(() => {
         );
     }
 
+    if (allMenuItems.value.length === 0) {
+        menuPollInterval = setInterval(pollMenuStatus, MENU_POLL_INTERVAL_MS);
+        void pollMenuStatus();
+    }
+
     connect();
 });
-onBeforeUnmount(disconnect);
+onBeforeUnmount(() => {
+    if (menuPollInterval != null) clearInterval(menuPollInterval);
+    disconnect();
+});
 </script>
 
 <template>
@@ -708,12 +749,19 @@ onBeforeUnmount(disconnect);
                 </p>
             </div>
 
+            <div v-if="menuExtracting" class="flex flex-col items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+                <p class="flex items-center gap-2">
+                    <Loader2 class="h-4 w-4 shrink-0 animate-spin" />
+                    Extracting menu…
+                </p>
+                <p class="text-xs text-[#71717a]">Start talking will be available when the menu is ready.</p>
+            </div>
             <div class="space-y-3">
                 <button
                     type="button"
                     class="w-full rounded-xl px-5 py-3 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60"
                     :class="isRecording ? 'bg-[#dc2626] hover:bg-[#b91c1c]' : 'bg-[#3b82f6] hover:bg-[#2563eb]'"
-                    :disabled="!isConnected || !microphoneSupported"
+                    :disabled="menuExtracting || !isConnected || !microphoneSupported"
                     @click="toggleRecording"
                 >
                     {{ isRecording ? 'Stop' : 'Start talking' }}

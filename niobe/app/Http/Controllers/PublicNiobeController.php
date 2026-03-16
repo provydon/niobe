@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Waitress;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -18,11 +19,15 @@ class PublicNiobeController extends Controller
     {
         $waitress = Waitress::where('slug', $slug)->firstOrFail();
 
+        $menuItemsCount = $waitress->menuItems()->count();
+
         return Inertia::render('Niobe/Show', [
             'niobe' => [
                 'name' => $waitress->name,
                 'context' => $waitress->context,
                 'talk_url' => $waitress->talk_url,
+                'slug' => $waitress->slug,
+                'menu_items_count' => $menuItemsCount,
             ],
         ]);
     }
@@ -51,12 +56,32 @@ class PublicNiobeController extends Controller
                 'context' => $waitress->context,
                 'menu' => $waitress->full_context,
                 'share_url' => $waitress->share_url,
+                'slug' => $waitress->slug,
                 'menu_items' => $menuItems,
                 'menu_image_urls' => $menuImageUrls,
                 'menu_currency' => $waitress->menu_currency,
             ],
             'tableNumber' => $tableNumber ? (string) $tableNumber : null,
             'voiceAgentWebsocketUrl' => $this->voiceAgentWebsocketUrl($waitress->slug),
+        ]);
+    }
+
+    /**
+     * Public polling endpoint: menu status by slug (no auth). Used so testers can poll without Pusher.
+     */
+    public function menuStatus(string $slug): JsonResponse
+    {
+        $waitress = Waitress::where('slug', $slug)->firstOrFail();
+        $menuItems = $waitress->menuItems()->orderBy('position')->get();
+        $items = $menuItems->map(fn ($item) => [
+            'name' => $item->name,
+            'category' => $item->category,
+            'unit_price' => (string) $item->unit_price,
+        ])->all();
+
+        return response()->json([
+            'menu_items_count' => count($items),
+            'menu_items' => $items,
         ]);
     }
 

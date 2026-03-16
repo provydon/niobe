@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Form, Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ChevronDown } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { ChevronDown, Loader2 } from 'lucide-vue-next';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import api from '@/lib/api';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import { normalizeNiobeAction, type NiobeAction } from '@/lib/niobe-actions';
@@ -78,6 +79,47 @@ function confirmDelete(event: MouseEvent) {
 }
 
 const menuItems = computed(() => props.waitress.menu_items ?? []);
+
+const menuExtracting = ref(false);
+let menuPollInterval: ReturnType<typeof setInterval> | null = null;
+const MENU_POLL_INTERVAL_MS = 2500;
+const MENU_POLL_MAX_ATTEMPTS = 48; // ~2 minutes
+let menuPollAttempts = 0;
+
+function stopMenuPolling() {
+    if (menuPollInterval != null) {
+        clearInterval(menuPollInterval);
+        menuPollInterval = null;
+    }
+    menuExtracting.value = false;
+}
+
+async function pollMenuItems() {
+    menuPollAttempts += 1;
+    if (menuPollAttempts > MENU_POLL_MAX_ATTEMPTS) {
+        stopMenuPolling();
+        return;
+    }
+    try {
+        const { data } = await api.get<{ id: number }[]>(`/waitresses/${props.waitress.id}/menu-items`);
+        if (Array.isArray(data) && data.length > 0) {
+            stopMenuPolling();
+            router.reload();
+        }
+    } catch {
+        // keep polling on error
+    }
+}
+
+onMounted(() => {
+    if (menuItems.value.length === 0) {
+        menuExtracting.value = true;
+        menuPollInterval = setInterval(pollMenuItems, MENU_POLL_INTERVAL_MS);
+        void pollMenuItems();
+    }
+});
+
+onBeforeUnmount(stopMenuPolling);
 
 const editingMenuId = ref<number | null>(null);
 const editMenuForm = ref({ name: '', category: '', unit_price: '' });
@@ -161,6 +203,14 @@ function addMenuItem() {
 
             <div v-if="flash?.success" class="rounded-xl border border-primary/30 bg-primary/10 p-4 text-sm text-primary">
                 {{ flash.success }}
+            </div>
+
+            <div
+                v-if="menuExtracting"
+                class="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400"
+            >
+                <Loader2 class="h-5 w-5 shrink-0 animate-spin" />
+                <span>Menu is being extracted from your images. This page will update automatically when ready.</span>
             </div>
 
             <div class="rounded-2xl border border-border bg-card p-4 shadow-2xl sm:p-6 md:p-8">

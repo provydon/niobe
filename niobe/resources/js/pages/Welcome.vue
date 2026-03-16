@@ -25,7 +25,7 @@ const steps = [
     },
     {
         icon: Link2,
-        title: 'Share one link',
+        title: 'Share the link',
         text: 'Send the link to customers—on a QR code, your site, or table tent.',
     },
     {
@@ -85,7 +85,7 @@ const steps = [
                         For restaurant owners
                     </p>
                     <h1 class="animate-fade-in mt-4 text-3xl font-bold leading-tight text-[#e4e4e7] sm:text-4xl md:text-5xl" style="animation-delay: 80ms; animation-fill-mode: both;">
-                        <span class="text-[#93c5fd]">AI waitress</span> for restaurants. Upload your menu, share one link.
+                        <span class="text-[#93c5fd]">AI waitress</span> for restaurants. Upload your menu, Share the link.
                     </h1>
                     <p class="animate-fade-in mx-auto mt-5 max-w-lg text-base font-bold leading-relaxed text-[#a1a1aa] sm:text-lg" style="animation-delay: 160ms; animation-fill-mode: both;">
                         Customers talk to your AI waitress, have a conversation and place order by voice.

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Loader2 } from 'lucide-vue-next';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,6 +10,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import api from '@/lib/api';
 import { create, destroy, edit, index as waitressesIndex } from '@/routes/waitresses';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -28,13 +30,61 @@ interface PaginatedWaitresses {
     links: { url: string | null; label: string; active: boolean }[];
 }
 
-defineProps<{
+const props = defineProps<{
     waitresses: PaginatedWaitresses;
 }>();
 
 const page = usePage();
 const flash = (page.props as { flash?: { success?: string } }).flash;
 const copyTooltipOpen = ref<number | null>(null);
+
+const MENU_POLL_INTERVAL_MS = 2500;
+const MENU_POLL_MAX_ATTEMPTS = 48;
+let menuPollInterval: ReturnType<typeof setInterval> | null = null;
+let menuPollAttempts = 0;
+
+async function pollExtractingMenus() {
+    const extracting = props.waitresses.data.filter((w) => (w.menu_items_count ?? 0) === 0);
+    if (extracting.length === 0) return;
+    menuPollAttempts += 1;
+    if (menuPollAttempts > MENU_POLL_MAX_ATTEMPTS) {
+        if (menuPollInterval != null) {
+            clearInterval(menuPollInterval);
+            menuPollInterval = null;
+        }
+        return;
+    }
+    for (const w of extracting) {
+        try {
+            const { data } = await api.get<unknown[]>(`/waitresses/${w.id}/menu-items`);
+            if (Array.isArray(data) && data.length > 0) {
+                if (menuPollInterval != null) {
+                    clearInterval(menuPollInterval);
+                    menuPollInterval = null;
+                }
+                router.reload();
+                return;
+            }
+        } catch {
+            // continue to next waitress
+        }
+    }
+}
+
+onMounted(() => {
+    const hasExtracting = props.waitresses.data.some((w) => (w.menu_items_count ?? 0) === 0);
+    if (hasExtracting) {
+        menuPollInterval = setInterval(pollExtractingMenus, MENU_POLL_INTERVAL_MS);
+        void pollExtractingMenus();
+    }
+});
+
+onBeforeUnmount(() => {
+    if (menuPollInterval != null) {
+        clearInterval(menuPollInterval);
+        menuPollInterval = null;
+    }
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard() },
@@ -87,9 +137,19 @@ function confirmDelete(event: MouseEvent) {
                             <p class="mt-1 truncate text-sm text-muted-foreground" :title="waitress.context">
                                 {{ waitress.context?.slice(0, 72) ?? '' }}{{ (waitress.context?.length ?? 0) > 72 ? '…' : '' }}
                             </p>
-                            <p class="mt-1 text-xs text-muted-foreground">
-                                Menu: {{ (waitress.menu_items_count ?? 0) > 0 ? `${waitress.menu_items_count} items` : 'No items yet' }}
-                            </p>
+                            <div class="mt-1 flex items-center gap-2">
+                                <span class="text-xs text-muted-foreground">Menu:</span>
+                                <template v-if="(waitress.menu_items_count ?? 0) > 0">
+                                    <span class="text-xs font-medium text-muted-foreground">{{ waitress.menu_items_count }} items</span>
+                                </template>
+                                <div
+                                    v-else
+                                    class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-400"
+                                >
+                                    <Loader2 class="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
+                                    <span>Extracting menu…</span>
+                                </div>
+                            </div>
                             <div class="mt-3 flex flex-wrap items-center gap-2 sm:gap-3">
                                 <a
                                     :href="waitress.share_url"

@@ -78,7 +78,7 @@ From there, a proxy bridges the browser WebSocket and this session so audio and 
 
 ## Why Google Cloud?
 
-I run the app on **Google Cloud** so that the Laravel app and the Go agent can share one **Cloud SQL (PostgreSQL)** instance. The agent is deployed as a container (e.g. **Cloud Run**), and the web app is deployed via **Terraform** and **Cloud Build** in the `deploy/` folder. Same VPC and database mean low latency and a single source of truth for menus, waitresses, and action logs. Configuration is via environment variables—no secrets in code:
+I run the app on **Google Cloud** so that the Laravel app and the Go agent can Share the **Cloud SQL (PostgreSQL)** instance. The agent is deployed as a container (e.g. **Cloud Run**), and the web app is deployed via **Terraform** and **Cloud Build** in the `deploy/` folder. Same VPC and database mean low latency and a single source of truth for menus, waitresses, and action logs. Configuration is via environment variables—no secrets in code:
 
 ```bash
 # Agent (Go) – example .env

@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
+import { Loader2 } from 'lucide-vue-next';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 interface NiobeShowProps {
     niobe: {
         name: string;
         context: string;
         talk_url: string;
+        slug: string;
+        menu_items_count: number;
     };
 }
 
@@ -19,6 +23,51 @@ const rawContext = props.niobe.context.replace(/<[^>]*>/g, '');
 const introText = rawContext.length > 280
     ? rawContext.slice(0, 280) + '…'
     : rawContext.trim() || `Hi, I'm ${props.niobe.name}. Tell me what you'd like to order.`;
+
+const menuReady = ref(props.niobe.menu_items_count > 0);
+const menuExtracting = ref(props.niobe.menu_items_count === 0);
+let pollInterval: ReturnType<typeof setInterval> | null = null;
+const POLL_INTERVAL_MS = 2500;
+const POLL_MAX_ATTEMPTS = 48;
+let pollAttempts = 0;
+
+async function pollMenuStatus() {
+    pollAttempts += 1;
+    if (pollAttempts > POLL_MAX_ATTEMPTS) {
+        if (pollInterval != null) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+        menuExtracting.value = false;
+        return;
+    }
+    try {
+        const res = await fetch(`/n/${props.niobe.slug}/menu-status`, { credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.menu_items_count > 0) {
+            menuReady.value = true;
+            menuExtracting.value = false;
+            if (pollInterval != null) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+            router.reload();
+        }
+    } catch {
+        // keep polling
+    }
+}
+
+onMounted(() => {
+    if (props.niobe.menu_items_count === 0) {
+        pollInterval = setInterval(pollMenuStatus, POLL_INTERVAL_MS);
+        void pollMenuStatus();
+    }
+});
+
+onBeforeUnmount(() => {
+    if (pollInterval != null) clearInterval(pollInterval);
+});
 </script>
 
 <template>
@@ -43,7 +92,15 @@ const introText = rawContext.length > 280
                     Ready when you are.
                 </p>
 
+                <div v-if="menuExtracting" class="mt-8 flex flex-col items-center gap-3">
+                    <p class="flex items-center gap-2 text-sm text-amber-400">
+                        <Loader2 class="h-4 w-4 animate-spin" />
+                        Extracting menu…
+                    </p>
+                    <p class="text-xs text-[#71717a]">The page will update when the menu is ready.</p>
+                </div>
                 <a
+                    v-else
                     :href="talkHref"
                     class="mt-8 inline-flex items-center justify-center rounded-xl bg-[#3b82f6] px-6 py-3 text-sm font-medium text-white no-underline transition hover:bg-[#2563eb]"
                 >

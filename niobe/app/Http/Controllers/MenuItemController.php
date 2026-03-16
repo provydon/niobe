@@ -4,11 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Models\MenuItem;
 use App\Models\Waitress;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class MenuItemController extends Controller
 {
+    /**
+     * List menu items (JSON) for polling when menu is extracting.
+     */
+    public function index(Waitress $waitress): JsonResponse
+    {
+        $this->authorize('update', $waitress);
+
+        $items = $waitress->menuItems()->orderBy('position')->get();
+
+        return response()->json($items);
+    }
+
     public function store(Request $request, Waitress $waitress): RedirectResponse
     {
         $this->authorize('update', $waitress);

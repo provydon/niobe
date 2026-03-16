@@ -150,13 +150,16 @@ async function submit() {
                             id="name"
                             name="name"
                             required
-                            placeholder="e.g. Jays, Café Waitress"
+                            placeholder="e.g. Jenifer, Trinity"
                         />
                         <InputError :message="errors.name" />
                     </div>
 
                     <div class="space-y-2">
                         <Label>Menu images</Label>
+                        <p class="text-xs text-muted-foreground">
+                            you can Leave this empty and we'll use the sample menu in backend for testing.
+                        </p>
                         <input
                             ref="fileInput"
                             type="file"
@@ -212,9 +215,7 @@ async function submit() {
                             </div>
                         </div>
                         <InputError :message="errors['menu_files']" />
-                        <p class="text-xs !font-bold">
-                            you can Leave this empty and we'll use the sample menu (jays.jpeg) for testing.
-                        </p>
+                       
                     </div>
 
                     <WaitressActionsInput
