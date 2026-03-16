@@ -1,6 +1,6 @@
 module niobe/agent
 
-go 1.25.0
+go 1.23.0
 
 require google.golang.org/genai v1.49.0
 

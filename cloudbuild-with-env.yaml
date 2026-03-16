@@ -60,6 +60,7 @@ steps:
     env: ['DOCKER_BUILDKIT=1']
     args:
       - build
+      - --progress=plain
       - -f
       - agent/Dockerfile
       - -t
