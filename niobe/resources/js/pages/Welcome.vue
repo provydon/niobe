@@ -85,10 +85,10 @@ const steps = [
                         For restaurant owners
                     </p>
                     <h1 class="animate-fade-in mt-4 text-3xl font-bold leading-tight text-[#e4e4e7] sm:text-4xl md:text-5xl" style="animation-delay: 80ms; animation-fill-mode: both;">
-                        One link. Customers talk to <span class="text-[#93c5fd]">your AI waitress</span> and order.
+                        <span class="text-[#93c5fd]">AI waitress</span> for restaurants. Upload your menu, share one link.
                     </h1>
                     <p class="animate-fade-in mx-auto mt-5 max-w-lg text-base leading-relaxed text-[#a1a1aa] sm:text-lg" style="animation-delay: 160ms; animation-fill-mode: both;">
-                        Customers open the link, talk to your AI waitress by voice, and place orders. You choose where orders go—email, webhook, your Order Management system, etc
+                        Customers talk to your waitress, have a conversation with your AI waitress and order by voice.
                     </p>
                     <div class="animate-fade-in mt-8 flex flex-wrap items-center justify-center gap-3" style="animation-delay: 240ms; animation-fill-mode: both;">
                         <template v-if="$page.props.auth?.user">
