@@ -97,6 +97,88 @@ data "google_project" "project" {
   project_id = var.project_id
 }
 
+# User-managed service account for Cloud Build triggers (required for 2nd-gen repo triggers).
+# Default Cloud Build SA is not accepted; this SA runs the build and needs build-time permissions.
+resource "google_service_account" "cloudbuild_trigger" {
+  count        = var.github_repo_uri != "" ? 1 : 0
+  account_id   = "niobe-cloudbuild-trigger"
+  display_name = "Cloud Build trigger (Niobe/Agent deploy)"
+}
+
+# Allow the default Cloud Build SA to run builds as this user-managed SA.
+resource "google_service_account_iam_member" "cloudbuild_act_as_trigger_sa" {
+  count              = var.github_repo_uri != "" ? 1 : 0
+  service_account_id = google_service_account.cloudbuild_trigger[0].name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+# Build needs: push images, deploy Cloud Run, read secrets, write logs.
+resource "google_project_iam_member" "cloudbuild_trigger_artifactregistry" {
+  count   = var.github_repo_uri != "" ? 1 : 0
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.cloudbuild_trigger[0].email}"
+}
+
+resource "google_project_iam_member" "cloudbuild_trigger_run_admin" {
+  count   = var.github_repo_uri != "" ? 1 : 0
+  project = var.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${google_service_account.cloudbuild_trigger[0].email}"
+}
+
+resource "google_project_iam_member" "cloudbuild_trigger_logwriter" {
+  count   = var.github_repo_uri != "" ? 1 : 0
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.cloudbuild_trigger[0].email}"
+}
+
+resource "google_project_iam_member" "cloudbuild_trigger_sqlclient" {
+  count   = var.github_repo_uri != "" ? 1 : 0
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.cloudbuild_trigger[0].email}"
+}
+
+# So the trigger SA can deploy Cloud Run services that run as the default compute SA.
+resource "google_project_iam_member" "cloudbuild_trigger_act_as_compute" {
+  count   = var.github_repo_uri != "" ? 1 : 0
+  project = var.project_id
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:${google_service_account.cloudbuild_trigger[0].email}"
+}
+
+# Grant trigger SA access to the same secrets the default Cloud Build SA had.
+resource "google_secret_manager_secret_iam_member" "trigger_sa_db_password" {
+  count     = var.github_repo_uri != "" ? 1 : 0
+  secret_id = google_secret_manager_secret.db_password.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloudbuild_trigger[0].email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "trigger_sa_app_key" {
+  count     = var.github_repo_uri != "" ? 1 : 0
+  secret_id = google_secret_manager_secret.app_key.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloudbuild_trigger[0].email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "trigger_sa_niobe_app_env" {
+  count     = var.github_repo_uri != "" ? 1 : 0
+  secret_id = google_secret_manager_secret.niobe_app_env.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloudbuild_trigger[0].email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "trigger_sa_agent_app_env" {
+  count     = var.github_repo_uri != "" ? 1 : 0
+  secret_id = google_secret_manager_secret.agent_app_env.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloudbuild_trigger[0].email}"
+}
+
 resource "google_project_iam_member" "cloudrun_sqlclient" {
   project = var.project_id
   role    = "roles/cloudsql.client"
