@@ -88,7 +88,7 @@ const steps = [
                         <span class="text-[#93c5fd]">AI waitress</span> for restaurants. Upload your menu, share one link.
                     </h1>
                     <p class="animate-fade-in mx-auto mt-5 max-w-lg text-base leading-relaxed text-[#a1a1aa] sm:text-lg" style="animation-delay: 160ms; animation-fill-mode: both;">
-                        Customers talk to your waitress, have a conversation with your AI waitress and order by voice.
+                        Customers talk to your waitress, have a conversation with your AI waitress and place order by voice.
                     </p>
                     <div class="animate-fade-in mt-8 flex flex-wrap items-center justify-center gap-3" style="animation-delay: 240ms; animation-fill-mode: both;">
                         <template v-if="$page.props.auth?.user">
