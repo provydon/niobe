@@ -42,9 +42,8 @@ WORKDIR /frontend
 COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* ./
 RUN npm ci 2>/dev/null || npm install --legacy-peer-deps
 
-COPY resources ./resources
-COPY vite.config.* ./
-# Tailwind v4 + @tailwindcss/vite: no tailwind.config.js or postcss.config (configured in vite.config.ts / app.css)
+# Copy app source so both Tailwind v3 (tailwind.config.*, postcss.config.*) and v4 (@tailwindcss/vite only) work
+COPY . .
 
 RUN if [ "$SKIP_FRONTEND" = "1" ]; then mkdir -p public/build; else npm run build; fi
 # --- END FRONTEND ---
