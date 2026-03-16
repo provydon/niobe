@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\OAuthController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PublicNiobeController;
 use App\Http\Controllers\WaitressController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,7 @@ Route::get('/n/{slug}/menu-image/{index}', [PublicNiobeController::class, 'menuI
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'Dashboard')->name('dashboard');
+    Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
     Route::post('waitresses/extract-context', [WaitressController::class, 'extractContext'])->name('waitresses.extract-context');
     Route::resource('waitresses', WaitressController::class)->except(['show']);
     Route::resource('waitresses.menu-items', MenuItemController::class)->only(['store', 'update', 'destroy']);

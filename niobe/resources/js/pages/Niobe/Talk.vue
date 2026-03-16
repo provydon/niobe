@@ -536,7 +536,10 @@ function connect() {
     }
 
     setStatus('Connecting...');
-    ws = new WebSocket(props.voiceAgentWebsocketUrl);
+    const wsUrl = new URL(props.voiceAgentWebsocketUrl);
+    const table = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('table');
+    if (table) wsUrl.searchParams.set('table', table);
+    ws = new WebSocket(wsUrl.toString());
     ws.onopen = () => {
         isConnected.value = true;
         transcriptLines.value = [];

@@ -142,6 +142,36 @@ func (n *LocalNiobeTools) Execute(ctx context.Context, toolName string, argument
 		return CallResponse{Tool: toolName, Result: errorResult("Action failed", definition.DisplayName, runErr.Error())}, nil
 	}
 
+	// Record order in orders table when an order tool succeeded
+	if isOrderTool(displayName) && status == "succeeded" {
+		orderSummary := strings.TrimSpace(strAny(args["body"]))
+		if orderSummary == "" {
+			orderSummary = strings.TrimSpace(strAny(args["order_details"]))
+		}
+		if orderSummary == "" {
+			orderSummary = strings.TrimSpace(strAny(args["subject"]))
+		}
+		if orderSummary != "" {
+			tableNum := strings.TrimSpace(strAny(args["table_number"]))
+			customerName := strings.TrimSpace(strAny(args["customer_name"]))
+			var tableNumVal, customerNameVal any = nil, nil
+			if tableNum != "" {
+				tableNumVal = tableNum
+			}
+			if customerName != "" {
+				customerNameVal = customerName
+			}
+			_, insErr := n.db.ExecContext(ctx,
+				`INSERT INTO orders (waitress_id, waitress_action_log_id, order_summary, sent_to, sent_at, table_number, customer_name, created_at, updated_at)
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $5, $5)`,
+				n.waitress.ID, logID, orderSummary, displayName, completed, tableNumVal, customerNameVal,
+			)
+			if insErr != nil {
+				log.Printf("[tools] insert order: %v", insErr)
+			}
+		}
+	}
+
 	title, message := successCopy(displayName, effectiveName, toolType, args)
 	return CallResponse{
 		Tool: toolName,
@@ -171,10 +201,16 @@ func normalizeArguments(def Definition, arguments map[string]any) map[string]any
 		return arguments
 	}
 
-	// Accept camelCase from API (e.g. orderDetails)
+	// Accept camelCase from API (e.g. orderDetails, tableNumber)
 	if v := arguments["orderDetails"]; v != nil && arguments["order_details"] == nil {
 		arguments["order_details"] = v
 	}
+		if v := arguments["tableNumber"]; v != nil && arguments["table_number"] == nil {
+			arguments["table_number"] = v
+		}
+		if v := arguments["customerName"]; v != nil && arguments["customer_name"] == nil {
+			arguments["customer_name"] = v
+		}
 
 	subject := strings.TrimSpace(strAny(arguments["subject"]))
 	body := strings.TrimSpace(strAny(arguments["body"]))

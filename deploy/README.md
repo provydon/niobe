@@ -1,4 +1,4 @@
-# Cloud deployment automation (Hackathon bonus)
+# Cloud deployment automation
 
 This folder contains **automated Cloud Deployment** using **scripts** and **infrastructure-as-code** so it can be included in our public repository for the hackathon bonus.
 

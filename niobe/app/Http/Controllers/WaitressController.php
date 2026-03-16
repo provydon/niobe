@@ -110,6 +110,9 @@ class WaitressController extends Controller
 
     public function store(Request $request): RedirectResponse|JsonResponse
     {
+        $validated =         $request->merge([
+            'tables_count' => is_numeric($request->input('tables_count')) ? (int) $request->input('tables_count') : null,
+        ]);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'actions' => ['required', 'array', 'min:1'],
@@ -118,12 +121,14 @@ class WaitressController extends Controller
             'actions.*.target' => ['required', 'string', 'max:2048'],
             'menu_files' => ['required', 'array', 'min:1', 'max:10'],
             'menu_files.*' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp'],
+            'tables_count' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ]);
 
         $waitress = $request->user()->waitresses()->create([
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']),
             'context' => '',
+            'tables_count' => isset($validated['tables_count']) && $validated['tables_count'] > 0 ? (int) $validated['tables_count'] : null,
             'tools' => array_map(
                 fn (array $action) => [
                     'type' => $action['type'],
@@ -172,16 +177,21 @@ class WaitressController extends Controller
     {
         $this->authorize('update', $waitress);
 
+        $request->merge([
+            'tables_count' => is_numeric($request->input('tables_count')) ? (int) $request->input('tables_count') : null,
+        ]);
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'actions' => ['required', 'array', 'min:1'],
             'actions.*.type' => ['required', 'string', Rule::in(self::ACTION_TYPES)],
             'actions.*.name' => ['required', 'string', 'max:255'],
             'actions.*.target' => ['required', 'string', 'max:2048'],
+            'tables_count' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ]);
 
         $waitress->update([
             'name' => $validated['name'],
+            'tables_count' => isset($validated['tables_count']) && $validated['tables_count'] > 0 ? (int) $validated['tables_count'] : null,
             'tools' => array_map(
                 fn (array $action) => [
                     'type' => $action['type'],

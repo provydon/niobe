@@ -20,6 +20,9 @@ func main() {
 	_ = godotenv.Load("../niobe/.env", ".env")
 
 	cfg := config.Load()
+	if cfg.DatabaseDSN() == "" {
+		log.Fatal("database config missing: set DATABASE_URL or Laravel-style DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD")
+	}
 	connector := live.GoogleConnector{}
 
 	// Register /health so Cloud Run can see the container is up; listen immediately on PORT

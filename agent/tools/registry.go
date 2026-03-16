@@ -97,10 +97,18 @@ func sendEmailDescriptor(name, displayName, target, typ string) Definition {
 					"type":        "string",
 					"description": "Required. Pass the confirmed order as a single string every time you call this tool. Example: '1 Chinese Fried Rice. Total: 6,690'. Do not call the tool without this parameter or with empty arguments.",
 				},
+				"table_number": map[string]any{
+					"type":        "string",
+					"description": "Required to identify the customer. The table number or ID where the customer is seated (e.g. '5', 'Table 12'). Always ask 'Which table are you at?' (or similar) before placing the order so the kitchen knows who the order is for.",
+				},
+				"customer_name": map[string]any{
+					"type":        "string",
+					"description": "Optional. The customer's name if they provided it (e.g. 'John'). Ask 'May I have your name for the order?' if you want to identify them by name as well.",
+				},
 			},
 			"required": []string{"order_details"},
 		}
-		desc.Description = desc.Description + " When calling this tool, always pass order_details with the order summary (items and total)."
+		desc.Description = desc.Description + " When calling this tool, always pass order_details. You MUST get a way to identify the customer: ask for table number (table_number) so we know who the order is for; optionally ask for their name (customer_name)."
 		return desc
 	}
 	desc.ParametersJSONSchema = map[string]any{

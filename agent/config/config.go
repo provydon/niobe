@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"strings"
@@ -14,7 +15,7 @@ type Config struct {
 	UseVertex   bool
 	LaravelURL  string
 	AgentSecret string
-	DatabaseURL string // required: PostgreSQL connection URL (DATABASE_URL or DB_URL)
+	DatabaseURL string // PostgreSQL URL from DATABASE_URL/DB_URL or built from DB_* (same as Laravel)
 	// SMTP for sending tool emails (e.g. order notifications)
 	MailHost     string
 	MailPort     string
@@ -42,6 +43,9 @@ func Load() Config {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		dbURL = os.Getenv("DB_URL")
+	}
+	if dbURL == "" {
+		dbURL = buildDSNFromLaravelEnv()
 	}
 	useVertex := os.Getenv("GOOGLE_GENAI_USE_VERTEXAI") == "True" ||
 		os.Getenv("GOOGLE_GENAI_USE_VERTEXAI") == "true"
@@ -75,9 +79,34 @@ func (c Config) GetAPIKey() string { return c.APIKey }
 // GetUseVertex returns whether Vertex AI is used so Config can satisfy live.Config.
 func (c Config) GetUseVertex() bool { return c.UseVertex }
 
-// DatabaseDSN returns the PostgreSQL connection URL (DATABASE_URL or DB_URL). Must be set.
+// DatabaseDSN returns the PostgreSQL connection URL (from DATABASE_URL/DB_URL or built from Laravel DB_* vars).
 func (c Config) DatabaseDSN() string {
 	return c.DatabaseURL
+}
+
+// buildDSNFromLaravelEnv builds a PostgreSQL DSN from Laravel-style DB_* env vars (same as niobe .env).
+// Supports Cloud SQL Unix socket (DB_HOST=/cloudsql/PROJECT:REGION:INSTANCE) and TCP (DB_HOST=127.0.0.1).
+func buildDSNFromLaravelEnv() string {
+	host := os.Getenv("DB_HOST")
+	port := os.Getenv("DB_PORT")
+	if port == "" {
+		port = "5432"
+	}
+	database := os.Getenv("DB_DATABASE")
+	username := os.Getenv("DB_USERNAME")
+	password := os.Getenv("DB_PASSWORD")
+	if database == "" || username == "" {
+		return ""
+	}
+	// Cloud SQL Unix socket: host is path like /cloudsql/niobe-489920:us-central1:niobe-db
+	if strings.HasPrefix(host, "/cloudsql/") {
+		// postgres://user:pass@/dbname?host=/cloudsql/CONN
+		escPass := url.QueryEscape(password)
+		return fmt.Sprintf("postgres://%s:%s@/%s?host=%s", username, escPass, database, url.QueryEscape(host))
+	}
+	// TCP
+	escPass := url.QueryEscape(password)
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, escPass, host, port, database)
 }
 
 func normalizeLaravelURL(raw string) string {

@@ -24,6 +24,7 @@ class Waitress extends Model
         'menu_image_paths',
         'menu_currency',
         'tools',
+        'tables_count',
     ];
 
     protected function casts(): array
@@ -43,6 +44,11 @@ class Waitress extends Model
     public function actionLogs(): HasMany
     {
         return $this->hasMany(WaitressActionLog::class);
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class)->latest('sent_at');
     }
 
     public function menuItems(): HasMany

@@ -221,6 +221,22 @@ async function submit() {
                         variant="create"
                     />
 
+                    <div class="space-y-2">
+                        <Label for="tables_count">How many tables do you have?</Label>
+                        <Input
+                            id="tables_count"
+                            name="tables_count"
+                            type="number"
+                            min="0"
+                            max="9999"
+                            placeholder="e.g. 12"
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            Used so customers can say their table number (1 to this number), or use a link with ?table=5 for QR codes per table.
+                        </p>
+                        <InputError :message="errors.tables_count" />
+                    </div>
+
                     <p v-if="submitError" class="text-sm text-destructive">
                         {{ submitError }}
                     </p>

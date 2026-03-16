@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, FolderGit2, LayoutGrid, Mic } from 'lucide-vue-next';
+import { BookOpen, ClipboardList, FolderGit2, LayoutGrid, Mic } from 'lucide-vue-next';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -18,6 +18,8 @@ import { dashboard } from '@/routes';
 import { index as waitressesIndex } from '@/routes/waitresses';
 import type { NavItem } from '@/types';
 
+const ordersIndexUrl = '/orders';
+
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
@@ -28,6 +30,11 @@ const mainNavItems: NavItem[] = [
         title: 'My Waitresses',
         href: waitressesIndex(),
         icon: Mic,
+    },
+    {
+        title: 'Orders',
+        href: ordersIndexUrl,
+        icon: ClipboardList,
     },
 ];
 

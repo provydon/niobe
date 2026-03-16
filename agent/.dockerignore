@@ -1,0 +1,4 @@
+# Avoid copying local .env into image (Cloud Run injects env from agent-env.yaml)
+.env
+.env.*
+!.env.example

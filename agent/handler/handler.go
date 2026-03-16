@@ -61,7 +61,8 @@ func Live(connector live.Connector, cfg live.Config, waitresses *store.WaitressR
 				sessionCfg.Tools = tools.ToGenAITools(toolExecutor.Definitions())
 			}
 
-			sessionCfg.SystemInstruction = buildNiobeInstruction(waitress, toolExecutor)
+				tableFromURL := strings.TrimSpace(r.URL.Query().Get("table"))
+			sessionCfg.SystemInstruction = buildNiobeInstruction(waitress, toolExecutor, tableFromURL)
 		}
 
 		session, err := connector.Connect(ctx, cfg, sessionCfg)
@@ -92,7 +93,7 @@ Listen first, then respond naturally. Keep replies concise.
 Focus on the primary speaker; ignore background noise.
 If the user interrupts you while you are speaking, stop immediately and listen to what they say. Respond to their new input naturally; do not apologize for being interrupted or refer to your previous sentence.`
 
-func buildNiobeInstruction(waitress *store.Waitress, toolExecutor *tools.LocalNiobeTools) string {
+func buildNiobeInstruction(waitress *store.Waitress, toolExecutor *tools.LocalNiobeTools, tableFromURL string) string {
 	parts := []string{
 		strings.TrimSpace(systemInstructionPreamble),
 		fmt.Sprintf("Niobe name: %s", waitress.Name),
@@ -101,12 +102,21 @@ func buildNiobeInstruction(waitress *store.Waitress, toolExecutor *tools.LocalNi
 		"If you do not know the user's name, do not guess one. Address them naturally without using a name.",
 		"CRITICAL - Actions and tools: When the user confirms an action (e.g. says Yes, correct, go ahead), you MUST call the matching tool immediately. Do NOT say the action is done, placed, or completed until you have called the tool and received its success response. Never say phrases like 'order has been placed', 'I have placed your order', 'done', or 'your order has been sent' before you have actually invoked the tool. Step 1: User confirms. Step 2: You call the tool (no success wording yet). Step 3: You get the tool result. Step 4: Only then say it is done.",
 		"For place-order (or any order) tools: every time you call the tool you MUST pass the order_details parameter with a string that summarizes the confirmed order (e.g. order_details: '1 Chinese Fried Rice. Total: 6,690'). Never call the tool with empty arguments {} or the action will fail.",
+	}
+	if tableFromURL != "" {
+		parts = append(parts, fmt.Sprintf("The customer is at table %s. When you call the place-order (or any order) tool, always pass table_number: %s.", tableFromURL, tableFromURL))
+	} else if waitress.TablesCount > 0 {
+		parts = append(parts, fmt.Sprintf("When the customer places an order, ask which table they are at. They can choose from table 1 to %d. Pass the number in table_number when you call the order tool. Optionally ask for their name and pass it in customer_name.", waitress.TablesCount))
+	} else {
+		parts = append(parts, "For restaurant orders: you must identify the customer so we know who the order is for. Always ask which table they are at (e.g. 'Which table are you at?' or 'What is your table number?') and pass it in table_number when you call the order tool. Optionally ask for their name and pass it in customer_name.")
+	}
+	parts = append(parts,
 		"When stating a price to the customer, always say it with the menu currency (e.g. 10 dollars, 35 euros, 6,690 naira).",
 		"Use this flow for action requests: confirm the details, wait for user confirmation (Yes, etc.), then call the tool with order_details set to the order summary, then after the tool returns success tell the user the request is done and ask if they need anything else.",
 		"The user ends the conversation when they choose (e.g. by clicking end call). Do not assume the conversation is over or try to end it yourself.",
 		"Do not mention internal queueing, jobs, background processing, acceptance states, or implementation details to the user.",
 		"If a tool call fails, explain the failure plainly and do not pretend the action happened.",
-	}
+	)
 
 	if fullContext := waitress.FullContext(); fullContext != "" {
 		parts = append(parts, "Niobe context:\n"+fullContext)

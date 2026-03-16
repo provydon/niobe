@@ -24,6 +24,7 @@ type Waitress struct {
 	Slug             string
 	Context          string
 	MenuCurrency     string
+	TablesCount      int // number of tables (1..N); 0 means not set
 	MenuItems        []MenuItem
 	ExtractedContext []ExtractedContextItem
 	Tools            []Tool
@@ -52,12 +53,13 @@ func NewWaitressRepository(db *sql.DB) *WaitressRepository {
 func (r *WaitressRepository) FindBySlug(ctx context.Context, slug string) (*Waitress, error) {
 	row := r.db.QueryRowContext(
 		ctx,
-		`select id, name, slug, context, menu_currency, extracted_context, tools from waitresses where slug = $1 limit 1`,
+		`select id, name, slug, context, menu_currency, coalesce(tables_count, 0), extracted_context, tools from waitresses where slug = $1 limit 1`,
 		slug,
 	)
 
 	var waitress Waitress
 	var menuCurrency sql.NullString
+	var tablesCount sql.NullInt64
 	var extractedRaw []byte
 	var toolsRaw []byte
 
@@ -67,6 +69,7 @@ func (r *WaitressRepository) FindBySlug(ctx context.Context, slug string) (*Wait
 		&waitress.Slug,
 		&waitress.Context,
 		&menuCurrency,
+		&tablesCount,
 		&extractedRaw,
 		&toolsRaw,
 	); err != nil {
@@ -79,6 +82,9 @@ func (r *WaitressRepository) FindBySlug(ctx context.Context, slug string) (*Wait
 
 	if menuCurrency.Valid {
 		waitress.MenuCurrency = menuCurrency.String
+	}
+	if tablesCount.Valid && tablesCount.Int64 > 0 {
+		waitress.TablesCount = int(tablesCount.Int64)
 	}
 
 	if len(extractedRaw) > 0 {
