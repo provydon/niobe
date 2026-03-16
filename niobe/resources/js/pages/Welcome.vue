@@ -87,7 +87,7 @@ const steps = [
                     <h1 class="animate-fade-in mt-4 text-3xl font-bold leading-tight text-[#e4e4e7] sm:text-4xl md:text-5xl" style="animation-delay: 80ms; animation-fill-mode: both;">
                         <span class="text-[#93c5fd]">AI waitress</span> for restaurants. Upload your menu, share one link.
                     </h1>
-                    <p class="animate-fade-in mx-auto mt-5 max-w-lg text-base leading-relaxed text-[#a1a1aa] sm:text-lg" style="animation-delay: 160ms; animation-fill-mode: both;">
+                    <p class="animate-fade-in mx-auto mt-5 max-w-lg text-base font-bold leading-relaxed text-[#a1a1aa] sm:text-lg" style="animation-delay: 160ms; animation-fill-mode: both;">
                         Customers talk to your waitress, have a conversation with your AI waitress and place order by voice.
                     </p>
                     <div class="animate-fade-in mt-8 flex flex-wrap items-center justify-center gap-3" style="animation-delay: 240ms; animation-fill-mode: both;">
