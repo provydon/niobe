@@ -8,9 +8,10 @@ substitutions:
   _REPO: niobe
 
 steps:
-  # Build Laravel (niobe) image
+  # Build Laravel (niobe) image (BuildKit required for RUN --mount in Dockerfile)
   - name: 'gcr.io/cloud-builders/docker'
     id: build-laravel
+    env: ['DOCKER_BUILDKIT=1']
     args:
       - build
       - -f
@@ -26,6 +27,7 @@ steps:
   # Build Go agent image
   - name: 'gcr.io/cloud-builders/docker'
     id: build-agent
+    env: ['DOCKER_BUILDKIT=1']
     args:
       - build
       - -f

@@ -38,9 +38,10 @@ steps:
         chmod +x deploy/scripts/write-env-yaml-for-cloudbuild.sh
         ./deploy/scripts/write-env-yaml-for-cloudbuild.sh
 
-  # Build Laravel image
+  # Build Laravel image (BuildKit required for RUN --mount in Dockerfile)
   - name: 'gcr.io/cloud-builders/docker'
     id: build-laravel
+    env: ['DOCKER_BUILDKIT=1']
     args:
       - build
       - -f
@@ -56,6 +57,7 @@ steps:
   # Build Agent image
   - name: 'gcr.io/cloud-builders/docker'
     id: build-agent
+    env: ['DOCKER_BUILDKIT=1']
     args:
       - build
       - -f
