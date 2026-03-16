@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Write laravel-env.yaml and agent-env.yaml for Cloud Build (env from Secret Manager).
 # Optional: LARAVEL_BASE_ENV_FILE and AGENT_BASE_ENV_FILE (.env format); script overrides DB_*, APP_KEY, etc.
+# APP_URL and VOICE_AGENT_URL are taken from base env only (e.g. https://niobe.live, https://agent.niobe.live); not overridden by infra.
 # Usage: CONN_NAME=... DB_PASS=... [APP_KEY=...] [LARAVEL_BASE_ENV_FILE=path] [AGENT_BASE_ENV_FILE=path] write-env-yaml-for-cloudbuild.sh
 
 set -euo pipefail
@@ -10,8 +11,6 @@ DB_USER="${DB_USER:-niobe}"
 DB_NAME="${DB_NAME:-niobe}"
 DB_PASS="${DB_PASS:?}"
 APP_KEY="${APP_KEY:-}"
-APP_URL="${APP_URL:-}"
-VOICE_AGENT_URL="${VOICE_AGENT_URL:-}"
 LARAVEL_BASE_ENV_FILE="${LARAVEL_BASE_ENV_FILE:-}"
 AGENT_BASE_ENV_FILE="${AGENT_BASE_ENV_FILE:-}"
 
@@ -43,8 +42,8 @@ env_to_yaml() {
   done < "$env_file"
 }
 
-# APP_KEY can come from base env; we add it from variable (secret) at end so secret overrides
-LARAVEL_OVERRIDE_KEYS="DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD APP_URL VOICE_AGENT_URL SESSION_DRIVER CACHE_STORE QUEUE_CONNECTION LOG_STACK"
+# APP_KEY can come from base env; we add it from variable (secret) at end so secret overrides. APP_URL and VOICE_AGENT_URL from base env only.
+LARAVEL_OVERRIDE_KEYS="DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD SESSION_DRIVER CACHE_STORE QUEUE_CONNECTION LOG_STACK"
 # PORT is reserved by Cloud Run; never pass it in agent-env.yaml (Cloud Run sets PORT=8080)
 # Agent uses same DB_* as Laravel (builds DSN from DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD)
 AGENT_OVERRIDE_KEYS="DATABASE_URL DB_URL DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD PORT"
@@ -67,8 +66,6 @@ QUEUE_CONNECTION: "database"
 LOG_STACK: "single,stderr"
 EOF
 [[ -n "$APP_KEY" ]] && echo "APP_KEY: \"$(yaml_quote "$APP_KEY")\"" >> laravel-env.yaml
-[[ -n "$APP_URL" ]] && echo "APP_URL: \"$(yaml_quote "$APP_URL")\"" >> laravel-env.yaml
-[[ -n "$VOICE_AGENT_URL" ]] && echo "VOICE_AGENT_URL: \"$(yaml_quote "$VOICE_AGENT_URL")\"" >> laravel-env.yaml
 
 # Worker env: same as Laravel + DEPLOYMENT_TYPE=worker (for Cloud Run worker pool)
 cp laravel-env.yaml worker-env.yaml

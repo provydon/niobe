@@ -28,8 +28,7 @@ steps:
         APP_KEY=$(gcloud secrets versions access latest --secret=niobe-app-key --project="$PROJECT_ID" 2>/dev/null || true)
         [[ "$$APP_KEY" == "replace-me-with-php-artisan-key-generate--show" ]] && APP_KEY=""
         export APP_KEY
-        export APP_URL=$(gcloud run services describe niobe-web --region="${_REGION}" --project="$PROJECT_ID" --format='value(status.url)' 2>/dev/null || true)
-        export VOICE_AGENT_URL=$(gcloud run services describe niobe-agent --region="${_REGION}" --project="$PROJECT_ID" --format='value(status.url)' 2>/dev/null || true)
+        # APP_URL and VOICE_AGENT_URL come from niobe-app-env secret (e.g. https://niobe.live, https://agent.niobe.live); do not override with Cloud Run URLs.
         gcloud secrets versions access latest --secret=niobe-app-env --project="$PROJECT_ID" > /workspace/niobe-app-env.txt 2>/dev/null || true
         gcloud secrets versions access latest --secret=agent-app-env --project="$PROJECT_ID" > /workspace/agent-app-env.txt 2>/dev/null || true
         export LARAVEL_BASE_ENV_FILE=/workspace/niobe-app-env.txt
