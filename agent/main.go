@@ -25,10 +25,10 @@ func main() {
 	}
 	connector := live.GoogleConnector{}
 
-	// Register /health so Cloud Run can see the container is up; listen immediately on PORT
+	// Register /health first so Cloud Run sees the container as up as soon as we listen
 	http.HandleFunc("/health", handler.Health())
 
-	// Listen on PORT immediately so Cloud Run sees the container as started (required: PORT=8080)
+	// Listen on PORT immediately (Cloud Run requires listening within startup timeout)
 	go func() {
 		log.Printf("AI waitress API listening on :%s", cfg.Port)
 		if err := http.ListenAndServe(":"+cfg.Port, nil); err != nil {
@@ -36,21 +36,30 @@ func main() {
 		}
 	}()
 
-	// Connect to DB after listening; avoid blocking startup on slow Cloud SQL
-	db, err := sql.Open("pgx", cfg.DatabaseDSN())
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		log.Fatalf("database ping: %v", err)
-	}
-
-	waitresses := store.NewWaitressRepository(db)
-	http.HandleFunc("/live", handler.Live(connector, cfg, waitresses, db, &cfg))
+	// Connect to DB in background; do not block or fatal so container stays up even if Cloud SQL is slow
+	go func() {
+		for {
+			db, err := sql.Open("pgx", cfg.DatabaseDSN())
+			if err != nil {
+				log.Printf("database open: %v; retrying in 5s", err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			err = db.PingContext(ctx)
+			cancel()
+			if err != nil {
+				log.Printf("database ping: %v; retrying in 5s", err)
+				_ = db.Close()
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			waitresses := store.NewWaitressRepository(db)
+			http.HandleFunc("/live", handler.Live(connector, cfg, waitresses, db, &cfg))
+			log.Print("database connected, /live registered")
+			return
+		}
+	}()
 
 	select {} // block forever; server runs in goroutine
 }

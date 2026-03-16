@@ -188,7 +188,7 @@ function addMenuItem() {
                         min="0"
                         max="9999"
                         placeholder="e.g. 12"
-                        :default-value="waitress.tables_count ?? ''"
+                        :default-value="waitress.tables_count ?? 2"
                     />
                     <p class="text-xs text-muted-foreground">
                         Customers can say their table number (1 to this number), or use a link with ?table=5 for QR codes per table.

@@ -128,7 +128,7 @@ class WaitressController extends Controller
             'name' => $validated['name'],
             'slug' => Str::slug($validated['name']),
             'context' => '',
-            'tables_count' => isset($validated['tables_count']) && $validated['tables_count'] > 0 ? (int) $validated['tables_count'] : null,
+            'tables_count' => isset($validated['tables_count']) && $validated['tables_count'] > 0 ? (int) $validated['tables_count'] : 2,
             'tools' => array_map(
                 fn (array $action) => [
                     'type' => $action['type'],
@@ -191,7 +191,7 @@ class WaitressController extends Controller
 
         $waitress->update([
             'name' => $validated['name'],
-            'tables_count' => isset($validated['tables_count']) && $validated['tables_count'] > 0 ? (int) $validated['tables_count'] : null,
+            'tables_count' => isset($validated['tables_count']) && $validated['tables_count'] > 0 ? (int) $validated['tables_count'] : 2,
             'tools' => array_map(
                 fn (array $action) => [
                     'type' => $action['type'],
@@ -202,7 +202,7 @@ class WaitressController extends Controller
             ),
         ]);
 
-        return redirect()->route('waitresses.edit', $waitress)->with('success', __('Waitress updated.'));
+        return redirect()->route('waitresses.index')->with('success', __('Waitress updated.'));
     }
 
     public function destroy(Waitress $waitress): RedirectResponse

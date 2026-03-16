@@ -230,6 +230,7 @@ async function submit() {
                             min="0"
                             max="9999"
                             placeholder="e.g. 12"
+                            :default-value="2"
                         />
                         <p class="text-xs text-muted-foreground">
                             Used so customers can say their table number (1 to this number), or use a link with ?table=5 for QR codes per table.
