@@ -49,6 +49,45 @@ Full diagram and data flows: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
+## Quick start – run both apps
+
+Both apps use **SQLite** by default (one shared file) so you can run locally with no extra setup.
+
+**1. Laravel (Niobe web)**
+
+```bash
+cd niobe
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite
+php artisan migrate
+composer install --no-interaction --prefer-dist
+npm ci && npm run build
+php artisan serve
+```
+
+In another terminal, run the dev server for frontend assets:
+
+```bash
+cd niobe && npm run dev
+```
+
+Web app: **http://localhost:8000**
+
+**2. Agent (voice)**
+
+```bash
+cd agent
+cp .env.example .env
+go run .
+```
+
+Agent: **http://localhost:9000** (and WebSocket at `ws://localhost:9000/live?niobe=<slug>`).
+
+Optional: set `GEMINI_API_KEY` in both `niobe/.env` and `agent/.env` for menu extraction (Laravel) and live voice (agent). Without it, the app and agent start but those features need a key.
+
+---
+
 ## Reproducible testing
 
 These steps give the same test results as CI and can be run locally without external services (no real DB or API keys for the test suites).
@@ -137,11 +176,9 @@ Or run each `cd` block in a separate terminal.
 
 ---
 
-## Local development (optional)
+## Local development
 
-- **Niobe:** From `niobe/`, run `php artisan serve`, and in another terminal `npm run dev` for Vite. Use `.env` (e.g. `DB_CONNECTION=sqlite`, `DB_DATABASE=database/database.sqlite`) and run `php artisan migrate` if you use a real DB.
-- **Agent:** From `agent/`, run `go run .` (requires DB and env; see `agent/.env.example` or deploy docs for production-style config).
-- **Deploy:** See [deploy/README.md](deploy/README.md) and [deploy/DEPLOY-GCP.md](deploy/DEPLOY-GCP.md).
+See **Quick start** above for running both apps with SQLite. For production-style (PostgreSQL, GCP), see [deploy/README.md](deploy/README.md) and [deploy/DEPLOY-GCP.md](deploy/DEPLOY-GCP.md).
 
 ## License
 

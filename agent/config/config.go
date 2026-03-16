@@ -79,7 +79,16 @@ func (c Config) GetAPIKey() string { return c.APIKey }
 // GetUseVertex returns whether Vertex AI is used so Config can satisfy live.Config.
 func (c Config) GetUseVertex() bool { return c.UseVertex }
 
-// DatabaseDSN returns the PostgreSQL connection URL (from DATABASE_URL/DB_URL or built from Laravel DB_* vars).
+// DatabaseDriver returns "sqlite" when DATABASE_URL is a file: URL or path ending in .sqlite; otherwise "pgx".
+func (c Config) DatabaseDriver() string {
+	u := strings.TrimSpace(c.DatabaseURL)
+	if strings.HasPrefix(u, "file:") || (strings.Contains(u, ".sqlite") && !strings.HasPrefix(u, "postgres")) {
+		return "sqlite"
+	}
+	return "pgx"
+}
+
+// DatabaseDSN returns the connection URL or path (from DATABASE_URL/DB_URL or built from Laravel DB_* vars).
 func (c Config) DatabaseDSN() string {
 	return c.DatabaseURL
 }

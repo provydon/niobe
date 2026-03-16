@@ -9,6 +9,7 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
+	_ "modernc.org/sqlite"
 
 	"niobe/agent/config"
 	"niobe/agent/handler"
@@ -21,8 +22,9 @@ func main() {
 
 	cfg := config.Load()
 	if cfg.DatabaseDSN() == "" {
-		log.Fatal("database config missing: set DATABASE_URL or Laravel-style DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD")
+		log.Fatal("database config missing: set DATABASE_URL (e.g. file:../niobe/database/database.sqlite for SQLite) or Laravel-style DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD")
 	}
+	driver := cfg.DatabaseDriver()
 	connector := live.GoogleConnector{}
 
 	// Register /health first so Cloud Run sees the container as up as soon as we listen
@@ -39,7 +41,7 @@ func main() {
 	// Connect to DB in background; do not block or fatal so container stays up even if Cloud SQL is slow
 	go func() {
 		for {
-			db, err := sql.Open("pgx", cfg.DatabaseDSN())
+			db, err := sql.Open(driver, cfg.DatabaseDSN())
 			if err != nil {
 				log.Printf("database open: %v; retrying in 5s", err)
 				time.Sleep(5 * time.Second)
