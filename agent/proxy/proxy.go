@@ -613,21 +613,48 @@ func looksLikeConfirmation(input string) bool {
 		return false
 	}
 
+	// Broad set of confirmation phrases so the model can proceed to place order / run the tool
 	confirmationPhrases := []string{
 		"yes",
+		"yeah",
+		"yep",
+		"yup",
 		"confirm",
 		"go ahead",
+		"go on",
 		"proceed",
 		"do it",
 		"send it",
 		"place it",
 		"that's correct",
 		"that is correct",
+		"that's right",
+		"that is right",
 		"correct",
 		"approved",
 		"you can send",
 		"you can place",
 		"continue",
+		"no problem",
+		"sure",
+		"ok",
+		"okay",
+		"sounds good",
+		"sound good",
+		"that sounds good",
+		"please do",
+		"go for it",
+		"sure thing",
+		"absolutely",
+		"definitely",
+		"of course",
+		"please",
+		"go",
+		"do that",
+		"place the order",
+		"put it in",
+		"add it",
+		"confirmed",
 	}
 
 	for _, phrase := range confirmationPhrases {

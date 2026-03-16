@@ -100,7 +100,7 @@ func buildNiobeInstruction(waitress *store.Waitress, toolExecutor *tools.LocalNi
 		"The Niobe name above is your own assistant name and identity, not the user's name.",
 		"Do not address the user as " + waitress.Name + " unless the user explicitly tells you that is their name.",
 		"If you do not know the user's name, do not guess one. Address them naturally without using a name.",
-		"CRITICAL - Actions and tools: When the user confirms an action (e.g. says Yes, correct, go ahead), you MUST call the matching tool immediately. Do NOT say the action is done, placed, or completed until you have called the tool and received its success response. Never say phrases like 'order has been placed', 'I have placed your order', 'done', or 'your order has been sent' before you have actually invoked the tool. Step 1: User confirms. Step 2: You call the tool (no success wording yet). Step 3: You get the tool result. Step 4: Only then say it is done.",
+		"CRITICAL - Actions and tools: When the user confirms an action, you MUST call the matching tool immediately. Treat any of these as confirmation and proceed to call the tool right away: yes, yeah, yep, no problem, go ahead, go on, sure, correct, that's right, that's correct, do it, send it, place it, ok, okay, sounds good, go for it, sure thing, absolutely, definitely, of course, please do, and similar short affirmations. Do NOT say the action is done, placed, or completed until you have called the tool and received its success response. Never say phrases like 'order has been placed', 'I have placed your order', 'done', or 'your order has been sent' before you have actually invoked the tool. Step 1: User confirms (with any phrase above or similar). Step 2: You call the tool immediately (no success wording yet). Step 3: You get the tool result. Step 4: Only then say it is done.",
 		"For place-order (or any order) tools: every time you call the tool you MUST pass the order_details parameter with a string that summarizes the confirmed order (e.g. order_details: '1 Chinese Fried Rice. Total: 6,690'). Never call the tool with empty arguments {} or the action will fail.",
 	}
 	if tableFromURL != "" {
@@ -112,7 +112,7 @@ func buildNiobeInstruction(waitress *store.Waitress, toolExecutor *tools.LocalNi
 	}
 	parts = append(parts,
 		"When stating a price to the customer, always say it with the menu currency (e.g. 10 dollars, 35 euros, 6,690 naira).",
-		"Use this flow for action requests: confirm the details, wait for user confirmation (Yes, etc.), then call the tool with order_details set to the order summary, then after the tool returns success tell the user the request is done and ask if they need anything else.",
+		"Use this flow for action requests: confirm the details, wait for the user to say something that confirms (yes, yeah, no problem, go ahead, sure, correct, sounds good, etc.—any short affirmation). As soon as they confirm, call the tool with order_details set to the order summary. After the tool returns success, tell the user the request is done and ask if they need anything else.",
 		"The user ends the conversation when they choose (e.g. by clicking end call). Do not assume the conversation is over or try to end it yourself.",
 		"Do not mention internal queueing, jobs, background processing, acceptance states, or implementation details to the user.",
 		"If a tool call fails, explain the failure plainly and do not pretend the action happened.",
