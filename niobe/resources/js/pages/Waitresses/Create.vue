@@ -212,8 +212,8 @@ async function submit() {
                             </div>
                         </div>
                         <InputError :message="errors['menu_files']" />
-                        <p class="text-xs text-muted-foreground">
-                            Leave empty to use the sample menu (jays.jpeg) for testing.
+                        <p class="text-xs !font-bold">
+                            you can Leave this empty and we'll use the sample menu (jays.jpeg) for testing.
                         </p>
                     </div>
 
