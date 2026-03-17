@@ -5,19 +5,19 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 test('public niobe page renders a talk link', function () {
     $user = User::factory()->create();
-    $niobe = $user->niobes()->create([
+    $waitress = $user->waitresses()->create([
         'name' => 'Cafe Helper',
         'slug' => 'cafe-helper',
         'context' => 'Help customers with menu questions and orders.',
         'tools' => [],
     ]);
 
-    $this->get(route('niobe.show', $niobe->slug))
+    $this->get(route('niobe.show', $waitress->slug))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Niobe/Show')
             ->where('niobe.name', 'Cafe Helper')
-            ->where('niobe.talk_url', route('niobe.talk', $niobe->slug))
+            ->where('niobe.talk_url', route('niobe.talk', $waitress->slug))
         );
 });
 
@@ -25,14 +25,14 @@ test('public niobe talk page renders websocket config', function () {
     config()->set('app.voice_agent_url', 'http://localhost:9000');
 
     $user = User::factory()->create();
-    $niobe = $user->niobes()->create([
+    $waitress = $user->waitresses()->create([
         'name' => 'Cafe Helper',
         'slug' => 'cafe-helper',
         'context' => 'Help customers with menu questions and orders.',
         'tools' => [],
     ]);
 
-    $this->get(route('niobe.talk', $niobe->slug))
+    $this->get(route('niobe.talk', $waitress->slug))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Niobe/Talk')

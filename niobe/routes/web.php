@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\MenuItemController;
 use App\Http\Controllers\OAuthController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PublicNiobeController;
@@ -26,9 +25,9 @@ Route::get('/n/{slug}/menu-image/{index}', [PublicNiobeController::class, 'menuI
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
-    Route::post('waitresses/extract-context', [WaitressController::class, 'extractContext'])->name('waitresses.extract-context');
-    Route::resource('waitresses', WaitressController::class)->except(['show']);
-    Route::resource('waitresses.menu-items', MenuItemController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::get('waitresses', [WaitressController::class, 'index'])->name('waitresses.index');
+    Route::get('waitresses/create', [WaitressController::class, 'create'])->name('waitresses.create');
+    Route::get('waitresses/{waitress}/edit', [WaitressController::class, 'edit'])->name('waitresses.edit');
 });
 
 require __DIR__.'/settings.php';

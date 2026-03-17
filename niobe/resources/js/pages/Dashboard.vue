@@ -1,13 +1,23 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { onMounted, ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import api from '@/lib/api';
 import { dashboard as dashboardRoute } from '@/routes';
 import { create as waitressesCreate } from '@/routes/waitresses';
 import type { BreadcrumbItem } from '@/types';
 
-defineProps<{
-    totalOrders: number;
-}>();
+const totalOrders = ref<number>(0);
+const loading = ref(true);
+
+onMounted(async () => {
+    try {
+        const { data } = await api.get<{ totalOrders: number }>('/dashboard');
+        totalOrders.value = data.totalOrders;
+    } finally {
+        loading.value = false;
+    }
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -54,12 +64,15 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <h2 class="mt-2 text-xl font-semibold text-foreground">
                         Total orders
                     </h2>
-                    <p class="mt-4 text-4xl font-semibold tabular-nums text-muted-foreground">
-                        {{ totalOrders }}
-                    </p>
-                    <p class="mt-1 text-sm text-muted-foreground">
-                        All time
-                    </p>
+                    <p v-if="loading" class="mt-4 text-muted-foreground">Loading…</p>
+                    <template v-else>
+                        <p class="mt-4 text-4xl font-semibold tabular-nums text-muted-foreground">
+                            {{ totalOrders }}
+                        </p>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            All time
+                        </p>
+                    </template>
                 </div>
             </div>
         </div>

@@ -32,15 +32,16 @@ test('authenticated users can create a waitress with actions', function () {
 
     $response = $this
         ->actingAs($user)
-        ->post(route('waitresses.store'), [
+        ->post('/api/waitresses', [
             'name' => 'Cafe Helper',
-            'actions' => validActions(),
+            'actions' => json_encode(validActions()),
             'menu_files' => [$file],
         ]);
 
     $waitress = Waitress::firstOrFail();
 
-    $response->assertRedirect(route('waitresses.edit', $waitress, absolute: false));
+    $response->assertCreated()
+        ->assertJsonPath('waitress.id', $waitress->id);
 
     expect($waitress->user_id)->toBe($user->id)
         ->and($waitress->name)->toBe('Cafe Helper')
@@ -61,7 +62,7 @@ test('authenticated users can create a waitress with actions', function () {
     Queue::assertPushed(ExtractMenuJob::class, fn (ExtractMenuJob $job) => $job->waitressId === $waitress->id);
 });
 
-test('api create returns json instead of redirect', function () {
+test('api create returns json', function () {
     Storage::fake();
     Queue::fake();
 
@@ -70,9 +71,9 @@ test('api create returns json instead of redirect', function () {
 
     $response = $this
         ->actingAs($user)
-        ->postJson(route('waitresses.store'), [
+        ->post('/api/waitresses', [
             'name' => 'Cafe Helper',
-            'actions' => validActions(),
+            'actions' => json_encode(validActions()),
             'menu_files' => [$file],
         ]);
 
@@ -80,7 +81,6 @@ test('api create returns json instead of redirect', function () {
 
     $response->assertCreated()
         ->assertJsonPath('message', 'Waitress created. Menu is being extracted and will appear shortly.')
-        ->assertJsonPath('redirect', route('waitresses.index'))
         ->assertJsonPath('waitress.id', $waitress->id);
 });
 
@@ -93,16 +93,15 @@ test('creating a waitress with menu files queues ExtractMenuJob', function () {
 
     $response = $this
         ->actingAs($user)
-        ->post(route('waitresses.store'), [
+        ->post('/api/waitresses', [
             'name' => 'Cafe Helper',
-            'actions' => validActions(),
+            'actions' => json_encode(validActions()),
             'menu_files' => [$file],
         ]);
 
     $waitress = Waitress::firstOrFail();
 
-    $response->assertRedirect(route('waitresses.edit', $waitress, absolute: false));
-    $response->assertSessionHas('success', 'Waitress created. Menu is being extracted and will appear shortly.');
+    $response->assertCreated();
 
     Queue::assertPushed(ExtractMenuJob::class, function (ExtractMenuJob $job) use ($waitress) {
         expect($job->waitressId)->toBe($waitress->id)
@@ -122,13 +121,13 @@ test('creating a waitress without menu files creates waitress', function () {
 
     $response = $this
         ->actingAs($user)
-        ->post(route('waitresses.store'), [
+        ->postJson('/api/waitresses', [
             'name' => 'Cafe Helper',
             'actions' => validActions(),
         ]);
 
     $waitress = Waitress::firstOrFail();
-    $response->assertRedirect(route('waitresses.edit', $waitress, absolute: false));
+    $response->assertCreated();
     expect($waitress->name)->toBe('Cafe Helper');
 });
 
@@ -138,15 +137,14 @@ test('creating a waitress requires at least one action', function () {
 
     $response = $this
         ->actingAs($user)
-        ->from(route('waitresses.create'))
-        ->post(route('waitresses.store'), [
+        ->post('/api/waitresses', [
             'name' => 'Cafe Helper',
-            'actions' => [],
+            'actions' => json_encode([]),
             'menu_files' => [$file],
         ]);
 
-    $response->assertSessionHasErrors(['actions']);
-    expect($response->headers->get('Location'))->toContain('/waitresses/create');
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['actions']);
 
     expect(Waitress::count())->toBe(0);
 });
@@ -157,8 +155,7 @@ test('creating a waitress rejects unsupported action types', function () {
 
     $response = $this
         ->actingAs($user)
-        ->from(route('waitresses.create'))
-        ->post(route('waitresses.store'), [
+        ->postJson('/api/waitresses', [
             'name' => 'Cafe Helper',
             'actions' => [
                 [
@@ -170,8 +167,8 @@ test('creating a waitress rejects unsupported action types', function () {
             'menu_files' => [$file],
         ]);
 
-    $response->assertSessionHasErrors(['actions.0.type']);
-    expect($response->headers->get('Location'))->toContain('/waitresses/create');
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['actions.0.type']);
 
     expect(Waitress::count())->toBe(0);
 });
@@ -193,8 +190,7 @@ test('authenticated users can update a waitress with new actions', function () {
 
     $response = $this
         ->actingAs($user)
-        ->from(route('waitresses.edit', $waitress))
-        ->patch(route('waitresses.update', $waitress), [
+        ->putJson("/api/waitresses/{$waitress->id}", [
             'name' => 'Cafe Concierge',
             'actions' => [
                 [
@@ -210,7 +206,7 @@ test('authenticated users can update a waitress with new actions', function () {
             ],
         ]);
 
-    $response->assertRedirect(route('waitresses.index'));
+    $response->assertOk();
 
     $waitress->refresh();
 

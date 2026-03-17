@@ -4,6 +4,7 @@ use App\Http\Middleware\ForceHttpsMiddleware;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -29,11 +30,13 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
+        // Stateful API: same-origin SPA uses session cookies for /api/* (like boi-online-portal, fikets)
+        $middleware->statefulApi();
+
         // When behind a load balancer / reverse proxy (e.g. production)
         $middleware->trustProxies(at: '*');
 
         $middleware->web(prepend: [ForceHttpsMiddleware::class]);
-        // Stateless API: do not use statefulApi() — use token auth (e.g. Sanctum token) for /api/* instead of session.
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (Throwable $e, $request) {

@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import InputError from '@/components/InputError.vue';
-import { type NiobeAction, type NiobeActionOption } from '@/lib/niobe-actions';
+import {
+    getNiobeActionOption,
+    niobeActionOptions,
+    type NiobeAction,
+    type NiobeActionOption,
+} from '@/lib/niobe-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,7 +41,8 @@ function emptyAction(type?: string): NiobeAction {
 }
 
 function getActionOption(type: string): NiobeActionOption {
-    return props.actionTypes.find((o) => o.value === type) ?? props.actionTypes[0]!;
+    const fromApi = props.actionTypes.find((o) => o.value === type) ?? props.actionTypes[0];
+    return fromApi ?? getNiobeActionOption(type);
 }
 
 function addAction() {
@@ -47,6 +53,10 @@ function removeAction(i: number) {
     if (props.modelValue.length <= 1) return;
     emit('update:modelValue', props.modelValue.filter((_, idx) => idx !== i));
 }
+
+const optionsForSelect = computed((): NiobeActionOption[] =>
+    props.actionTypes.length > 0 ? props.actionTypes : niobeActionOptions,
+);
 
 const borderClass = computed(() =>
     props.variant === 'create'
@@ -88,7 +98,7 @@ const inputClass = computed(() => (props.variant === 'create' ? 'border-2 border
                         :class="selectClass"
                     >
                         <option
-                            v-for="option in actionTypes"
+                            v-for="option in optionsForSelect"
                             :key="option.value"
                             :value="option.value"
                         >

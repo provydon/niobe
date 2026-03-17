@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ArrowLeft, Upload } from 'lucide-vue-next';
-import { onBeforeUnmount, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import api from '@/lib/api';
 import { createEmptyNiobeAction, type NiobeAction } from '@/lib/niobe-actions';
-import { toUrl } from '@/lib/utils';
 import WaitressActionsInput from '@/components/WaitressActionsInput.vue';
 import type { NiobeActionOption } from '@/lib/niobe-actions';
 import { Button } from '@/components/ui/button';
@@ -14,17 +13,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AppLayout from '@/layouts/AppLayout.vue';
-import {
-    create as waitressesCreate,
-    index as waitressesIndex,
-    store as waitressesStore,
-} from '@/routes/waitresses';
+import { create as waitressesCreate, index as waitressesIndex } from '@/routes/waitresses';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 
-const props = defineProps<{
-    actionTypes: NiobeActionOption[];
-}>();
+const actionTypes = ref<NiobeActionOption[]>([]);
+const loadingActionTypes = ref(true);
+
+onMounted(async () => {
+    try {
+        const { data } = await api.get<{ actionTypes: NiobeActionOption[] }>('/waitresses/action-types');
+        actionTypes.value = data.actionTypes ?? [];
+    } finally {
+        loadingActionTypes.value = false;
+    }
+});
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: dashboard() },
@@ -114,8 +117,9 @@ async function submit() {
         const formData = new FormData(formRef.value);
         menuFileEntries.value.forEach((e) => formData.append('menu_files[]', e.file));
         // If no files, backend uses default menu image (public/menus/jays.jpeg) for testers
-        await api.post(toUrl(waitressesStore.url()), formData);
-        router.visit(toUrl(waitressesIndex()));
+        formData.append('actions', JSON.stringify(actions.value));
+        await api.post('/waitresses', formData);
+        router.visit(waitressesIndex());
     } catch (error: any) {
         if (error.response?.status === 422 && error.response?.data?.errors) {
             errors.value = normalizeErrors(error.response.data.errors);

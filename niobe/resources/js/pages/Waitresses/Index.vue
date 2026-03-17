@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { Loader2 } from 'lucide-vue-next';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -11,7 +11,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import api from '@/lib/api';
-import { create, destroy, edit, index as waitressesIndex } from '@/routes/waitresses';
+import { create, edit, index as waitressesIndex } from '@/routes/waitresses';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 
@@ -30,12 +30,8 @@ interface PaginatedWaitresses {
     links: { url: string | null; label: string; active: boolean }[];
 }
 
-const props = defineProps<{
-    waitresses: PaginatedWaitresses;
-}>();
-
-const page = usePage();
-const flash = (page.props as { flash?: { success?: string } }).flash;
+const waitresses = ref<PaginatedWaitresses>({ data: [], links: [] });
+const loading = ref(true);
 const copyTooltipOpen = ref<number | null>(null);
 
 const MENU_POLL_INTERVAL_MS = 2500;
@@ -43,8 +39,18 @@ const MENU_POLL_MAX_ATTEMPTS = 48;
 let menuPollInterval: ReturnType<typeof setInterval> | null = null;
 let menuPollAttempts = 0;
 
+async function fetchWaitresses(page = 1) {
+    loading.value = true;
+    try {
+        const { data } = await api.get<PaginatedWaitresses>('/waitresses', { params: { page } });
+        waitresses.value = data;
+    } finally {
+        loading.value = false;
+    }
+}
+
 async function pollExtractingMenus() {
-    const extracting = props.waitresses.data.filter((w) => (w.menu_items_count ?? 0) === 0);
+    const extracting = waitresses.value.data.filter((w) => (w.menu_items_count ?? 0) === 0);
     if (extracting.length === 0) return;
     menuPollAttempts += 1;
     if (menuPollAttempts > MENU_POLL_MAX_ATTEMPTS) {
@@ -62,17 +68,18 @@ async function pollExtractingMenus() {
                     clearInterval(menuPollInterval);
                     menuPollInterval = null;
                 }
-                router.reload();
+                await fetchWaitresses();
                 return;
             }
         } catch {
-            // continue to next waitress
+            // continue
         }
     }
 }
 
-onMounted(() => {
-    const hasExtracting = props.waitresses.data.some((w) => (w.menu_items_count ?? 0) === 0);
+onMounted(async () => {
+    await fetchWaitresses();
+    const hasExtracting = waitresses.value.data.some((w) => (w.menu_items_count ?? 0) === 0);
     if (hasExtracting) {
         menuPollInterval = setInterval(pollExtractingMenus, MENU_POLL_INTERVAL_MS);
         void pollExtractingMenus();
@@ -99,9 +106,24 @@ function copyUrl(url: string, waitressId: number) {
     }, 1500);
 }
 
-function confirmDelete(event: MouseEvent) {
-    if (!window.confirm('Delete this waitress?')) {
-        event.preventDefault();
+async function deleteWaitress(waitress: Waitress) {
+    if (!window.confirm('Delete this waitress?')) return;
+    try {
+        await api.delete(`/waitresses/${waitress.id}`);
+        router.visit(waitressesIndex());
+    } catch {
+        // error handled by api interceptor
+    }
+}
+
+function getPageFromLink(link: { url: string | null }): number | null {
+    if (!link.url) return null;
+    try {
+        const u = new URL(link.url);
+        const p = u.searchParams.get('page');
+        return p ? parseInt(p, 10) : null;
+    } catch {
+        return null;
     }
 }
 </script>
@@ -121,13 +143,10 @@ function confirmDelete(event: MouseEvent) {
                 </Link>
             </div>
 
-            <div v-if="flash?.success" class="rounded-xl border border-primary/30 bg-primary/10 p-4 text-sm text-primary">
-                {{ flash.success }}
-            </div>
-
             <div class="rounded-2xl border border-border bg-card shadow-2xl">
                 <div class="p-4 sm:p-6">
-                    <template v-if="waitresses.data.length">
+                    <div v-if="loading" class="flex justify-center py-12 text-muted-foreground">Loading…</div>
+                    <template v-else-if="waitresses.data.length">
                         <div
                             v-for="waitress in waitresses.data"
                             :key="waitress.id"
@@ -182,41 +201,37 @@ function confirmDelete(event: MouseEvent) {
                                     </Tooltip>
                                 </TooltipProvider>
                                 <Link :href="edit(waitress.id)" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md text-sm text-primary hover:underline sm:min-h-0 sm:min-w-0 sm:justify-start">Edit</Link>
-                                <Link
-                                    :href="destroy.url(waitress.id)"
-                                    method="delete"
-                                    as="button"
+                                <button
+                                    type="button"
                                     class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md text-sm text-destructive hover:underline sm:min-h-0 sm:min-w-0 sm:justify-start"
-                                    preserve-scroll
-                                    @click="confirmDelete"
+                                    @click="deleteWaitress(waitress)"
                                 >
                                     Delete
-                                </Link>
+                                </button>
                             </div>
                         </div>
                     </template>
                     <div v-else class="flex flex-col items-center justify-center gap-4 py-12 text-center">
-                        <p class="text-foreground">
-                            No waitresses yet.
-                        </p>
+                        <p class="text-foreground">No waitresses yet.</p>
                         <Link :href="create()">
                             <Button class="rounded-xl px-5 py-3">Create waitress</Button>
                         </Link>
                     </div>
                 </div>
-                <div v-if="waitresses.links && waitresses.links.length > 3" class="flex flex-wrap justify-center gap-2 border-t border-border px-4 py-4 sm:px-6">
-                    <div v-for="(link, i) in waitresses.links" :key="i" class="inline">
-                        <Link
-                            v-if="link.url"
-                            :href="link.url"
-                            class="rounded-lg px-3 py-1.5 text-sm transition-colors"
+                <div v-if="!loading && waitresses.links && waitresses.links.length > 3" class="flex flex-wrap justify-center gap-2 border-t border-border px-4 py-4 sm:px-6">
+                    <template v-for="(link, i) in waitresses.links" :key="i">
+                        <button
+                            v-if="getPageFromLink(link) !== null"
+                            type="button"
+                            class="rounded-lg px-3 py-1.5 text-sm transition-colors disabled:opacity-50"
                             :class="link.active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
-                            preserve-scroll
+                            :disabled="link.active"
+                            @click="fetchWaitresses(getPageFromLink(link)!)"
                         >
                             <span v-html="link.label" />
-                        </Link>
+                        </button>
                         <span v-else class="px-3 py-1.5 text-sm text-muted-foreground" v-html="link.label" />
-                    </div>
+                    </template>
                 </div>
             </div>
         </div>

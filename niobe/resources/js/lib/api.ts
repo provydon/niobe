@@ -9,7 +9,7 @@ function getCsrfToken(): string {
 }
 
 const api = axios.create({
-    baseURL: '',
+    baseURL: '/api',
     timeout: 60000,
     headers: {
         'Content-Type': 'application/json',
@@ -26,7 +26,6 @@ api.interceptors.request.use(
         }
         config.headers.set('Accept', 'application/json');
         config.headers.set('X-Requested-With', 'XMLHttpRequest');
-        // Let axios set Content-Type (e.g. multipart/form-data with boundary) when sending FormData
         if (config.data instanceof FormData) {
             config.headers.delete('Content-Type');
         }
