@@ -7,6 +7,7 @@ use App\Services\MenuExtractionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class ExtractMenuJob implements ShouldQueue
@@ -32,9 +33,13 @@ class ExtractMenuJob implements ShouldQueue
         foreach ($this->storagePaths as $relativePath) {
             $relativePath = is_string($relativePath) ? trim($relativePath) : '';
             if ($relativePath === '') {
+                Log::debug('ExtractMenuJob skipping empty path', ['waitress_id' => $this->waitressId]);
+
                 continue;
             }
             if (! $disk->exists($relativePath)) {
+                Log::warning('ExtractMenuJob path not found on disk', ['waitress_id' => $this->waitressId, 'path' => $relativePath]);
+
                 continue;
             }
 
@@ -54,11 +59,14 @@ class ExtractMenuJob implements ShouldQueue
             );
         }
 
+        Log::info('ExtractMenuJob built uploaded files', ['waitress_id' => $this->waitressId, 'paths_given' => count($this->storagePaths), 'files_ready' => count($out)]);
+
         return $out;
     }
 
     private function deleteStoredFiles(): void
     {
+        Log::info('ExtractMenuJob deleting stored files (waitress missing)', ['waitress_id' => $this->waitressId, 'paths' => $this->storagePaths]);
         foreach ($this->storagePaths as $path) {
             $path = is_string($path) ? trim($path) : '';
             if ($path !== '') {
@@ -69,9 +77,12 @@ class ExtractMenuJob implements ShouldQueue
 
     public function handle(MenuExtractionService $menuExtractor): void
     {
+        Log::info('ExtractMenuJob started', ['waitress_id' => $this->waitressId, 'storage_paths' => $this->storagePaths]);
+
         $waitress = Waitress::find($this->waitressId);
 
         if (! $waitress) {
+            Log::warning('ExtractMenuJob waitress not found', ['waitress_id' => $this->waitressId]);
             $this->deleteStoredFiles();
 
             return;
@@ -81,8 +92,12 @@ class ExtractMenuJob implements ShouldQueue
 
         try {
             if (! empty($files)) {
+                Log::info('ExtractMenuJob running extraction', ['waitress_id' => $this->waitressId, 'file_count' => count($files)]);
                 $menu = $menuExtractor->extractMenuFromFiles($files);
                 $items = $menu['items'] ?? [];
+                $currency = $menu['currency'] ?? null;
+                Log::info('ExtractMenuJob extraction result', ['waitress_id' => $this->waitressId, 'item_count' => count($items), 'currency' => $currency]);
+
                 foreach (array_values($items) as $position => $item) {
                     $waitress->menuItems()->create([
                         'name' => $item['name'] ?? '',
@@ -96,6 +111,9 @@ class ExtractMenuJob implements ShouldQueue
                     $updates['menu_currency'] = $menu['currency'];
                 }
                 $waitress->update($updates);
+                Log::info('ExtractMenuJob completed', ['waitress_id' => $this->waitressId, 'menu_items_created' => count($items)]);
+            } else {
+                Log::info('ExtractMenuJob no files to extract', ['waitress_id' => $this->waitressId]);
             }
         } finally {
             foreach ($files as $file) {

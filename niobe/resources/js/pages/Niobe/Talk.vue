@@ -11,6 +11,7 @@ interface MenuItemRow {
 
 interface NiobeTalkProps {
     niobe: {
+        id: number;
         name: string;
         context: string;
         menu?: string;
@@ -737,6 +738,7 @@ onBeforeUnmount(() => {
             <div class="mb-6">
                 <p class="text-xs uppercase tracking-[0.2em] text-[#71717a]">AI waitress</p>
                 <h1 class="mt-2 text-2xl font-semibold">{{ niobe.name }}</h1>
+                <p class="mt-1 text-xs text-[#71717a]">ID: {{ niobe.id }}</p>
                 <p
                     class="mt-3 text-sm"
                     :class="{

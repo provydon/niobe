@@ -52,6 +52,7 @@ class PublicNiobeController extends Controller
 
         return Inertia::render('Niobe/Talk', [
             'niobe' => [
+                'id' => $waitress->id,
                 'name' => $waitress->name,
                 'context' => $waitress->context,
                 'menu' => $waitress->full_context,

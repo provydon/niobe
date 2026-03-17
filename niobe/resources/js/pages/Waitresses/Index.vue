@@ -133,7 +133,10 @@ function confirmDelete(event: MouseEvent) {
                             :key="waitress.id"
                             class="border-b border-border py-4 last:border-0 sm:py-5"
                         >
-                            <h3 class="text-lg font-semibold text-foreground sm:text-xl">{{ waitress.name }}</h3>
+                            <div class="flex items-baseline gap-2">
+                                <h3 class="text-lg font-semibold text-foreground sm:text-xl">{{ waitress.name }}</h3>
+                                <span class="text-xs text-muted-foreground">ID: {{ waitress.id }}</span>
+                            </div>
                             <p class="mt-1 truncate text-sm text-muted-foreground" :title="waitress.context">
                                 {{ waitress.context?.slice(0, 72) ?? '' }}{{ (waitress.context?.length ?? 0) > 72 ? '…' : '' }}
                             </p>

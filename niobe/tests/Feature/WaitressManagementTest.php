@@ -24,7 +24,7 @@ function validActions(): array
 }
 
 test('authenticated users can create a waitress with actions', function () {
-    Storage::fake('local');
+    Storage::fake();
     Queue::fake();
 
     $user = User::factory()->create();
@@ -62,7 +62,7 @@ test('authenticated users can create a waitress with actions', function () {
 });
 
 test('api create returns json instead of redirect', function () {
-    Storage::fake('local');
+    Storage::fake();
     Queue::fake();
 
     $user = User::factory()->create();
@@ -85,7 +85,7 @@ test('api create returns json instead of redirect', function () {
 });
 
 test('creating a waitress with menu files queues ExtractMenuJob', function () {
-    Storage::fake('local');
+    Storage::fake();
     Queue::fake();
 
     $user = User::factory()->create();
@@ -114,21 +114,22 @@ test('creating a waitress with menu files queues ExtractMenuJob', function () {
     });
 });
 
-test('creating a waitress requires menu files', function () {
+test('creating a waitress without menu files creates waitress', function () {
+    Storage::fake();
+    Queue::fake();
+
     $user = User::factory()->create();
 
     $response = $this
         ->actingAs($user)
-        ->from(route('waitresses.create'))
         ->post(route('waitresses.store'), [
             'name' => 'Cafe Helper',
             'actions' => validActions(),
         ]);
 
-    $response->assertRedirect(route('waitresses.create', absolute: false));
-    $response->assertSessionHasErrors(['menu_files']);
-
-    expect(Waitress::count())->toBe(0);
+    $waitress = Waitress::firstOrFail();
+    $response->assertRedirect(route('waitresses.edit', $waitress, absolute: false));
+    expect($waitress->name)->toBe('Cafe Helper');
 });
 
 test('creating a waitress requires at least one action', function () {
@@ -144,8 +145,8 @@ test('creating a waitress requires at least one action', function () {
             'menu_files' => [$file],
         ]);
 
-    $response->assertRedirect(route('waitresses.create', absolute: false));
     $response->assertSessionHasErrors(['actions']);
+    expect($response->headers->get('Location'))->toContain('/waitresses/create');
 
     expect(Waitress::count())->toBe(0);
 });
@@ -169,8 +170,8 @@ test('creating a waitress rejects unsupported action types', function () {
             'menu_files' => [$file],
         ]);
 
-    $response->assertRedirect(route('waitresses.create', absolute: false));
     $response->assertSessionHasErrors(['actions.0.type']);
+    expect($response->headers->get('Location'))->toContain('/waitresses/create');
 
     expect(Waitress::count())->toBe(0);
 });
@@ -209,7 +210,7 @@ test('authenticated users can update a waitress with new actions', function () {
             ],
         ]);
 
-    $response->assertRedirect(route('waitresses.edit', $waitress, absolute: false));
+    $response->assertRedirect(route('waitresses.index'));
 
     $waitress->refresh();
 

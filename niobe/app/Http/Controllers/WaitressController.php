@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -141,24 +142,59 @@ class WaitressController extends Controller
 
         $paths = [];
         $menuFiles = $request->file('menu_files', []);
-        if (count($menuFiles) > 0) {
-            foreach ($menuFiles as $file) {
-                $paths[] = $file->store("waitresses/{$waitress->id}/menu-extraction");
+        $hasMenuFiles = is_array($menuFiles) && count($menuFiles) > 0;
+
+        Log::info('Menu upload started', ['waitress_id' => $waitress->id, 'user_uploaded_files' => $hasMenuFiles, 'file_count' => $hasMenuFiles ? count($menuFiles) : 0]);
+
+        try {
+            if ($hasMenuFiles) {
+                $prefix = "waitresses/{$waitress->id}/menu-extraction";
+                foreach ($menuFiles as $file) {
+                    $path = $file->store($prefix);
+                    if (is_string($path) && $path !== '') {
+                        $paths[] = $path;
+                        Log::info('Menu file stored', ['waitress_id' => $waitress->id, 'path' => $path]);
+                    } else {
+                        Log::warning('Menu file store() returned no path', ['waitress_id' => $waitress->id, 'original_name' => $file->getClientOriginalName()]);
+                        report(new \RuntimeException('Menu file store() returned no path. Check S3/AWS config.'));
+                    }
+                }
+            } else {
+                $defaultPath = public_path('menus/jays.jpeg');
+                if (File::isFile($defaultPath)) {
+                    $path = Storage::putFileAs("waitresses/{$waitress->id}/menu-extraction", new \Illuminate\Http\File($defaultPath), 'jays.jpeg');
+                    if (is_string($path) && $path !== '') {
+                        $paths[] = $path;
+                        Log::info('Default menu image stored', ['waitress_id' => $waitress->id, 'path' => $path]);
+                    }
+                } else {
+                    Log::info('No menu files and no default image', ['waitress_id' => $waitress->id]);
+                }
             }
-        } else {
-            $defaultMenuPath = public_path('menus/jays.jpeg');
-            if (File::isFile($defaultMenuPath)) {
-                $paths[] = Storage::putFileAs(
-                    "waitresses/{$waitress->id}/menu-extraction",
-                    new \Illuminate\Http\File($defaultMenuPath),
-                    'jays.jpeg'
-                );
-            }
+        } catch (\Throwable $e) {
+            Log::error('Menu upload failed', ['waitress_id' => $waitress->id, 'exception' => $e->getMessage()]);
+            report($e);
+            $err = ['menu_files' => [__('Menu file upload failed.')]];
+
+            return $request->expectsJson()
+                ? response()->json(['message' => __('Menu file upload failed.'), 'errors' => $err], 422)
+                : redirect()->back()->withInput()->withErrors($err);
         }
 
         $paths = array_values(array_filter($paths, fn ($p) => is_string($p) && $p !== ''));
+        Log::info('Menu upload paths after filter', ['waitress_id' => $waitress->id, 'paths' => $paths]);
+
+        if ($hasMenuFiles && count($paths) === 0) {
+            Log::warning('User provided menu files but none could be stored', ['waitress_id' => $waitress->id]);
+            $err = ['menu_files' => [__('Menu file upload failed.')]];
+
+            return $request->expectsJson()
+                ? response()->json(['message' => __('Menu file upload failed.'), 'errors' => $err], 422)
+                : redirect()->back()->withInput()->withErrors($err);
+        }
         if (count($paths) > 0) {
             ExtractMenuJob::dispatch($waitress->id, $paths);
+            Log::info('ExtractMenuJob dispatched', ['waitress_id' => $waitress->id, 'paths' => $paths]);
         }
 
         $message = __('Waitress created. Menu is being extracted and will appear shortly.');

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Laravel\Ai\AnonymousAgent;
 use Laravel\Ai\Enums\Lab;
 
@@ -43,8 +44,12 @@ TEXT;
     {
         $valid = array_values(array_filter($files, fn ($f) => $f instanceof UploadedFile && $f->isValid()));
         if (count($valid) === 0) {
+            Log::info('MenuExtractionService: no valid files', ['received' => count($files)]);
+
             return ['currency' => null, 'items' => []];
         }
+
+        Log::info('MenuExtractionService: calling Gemini', ['file_count' => count($valid)]);
 
         $agent = new AnonymousAgent(self::INSTRUCTIONS, [], []);
         $prompt = 'Merge all menu items from these images into one list. Return the JSON object only.';
@@ -60,6 +65,8 @@ TEXT;
 
             $decoded = json_decode($text, true);
             if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
+                Log::warning('MenuExtractionService: Gemini response not valid JSON', ['json_error' => json_last_error_msg()]);
+
                 return ['currency' => null, 'items' => []];
             }
 
@@ -90,8 +97,12 @@ TEXT;
                 ];
             }
 
+            Log::info('MenuExtractionService: parsed menu', ['item_count' => count($normalized), 'currency' => $currency]);
+
             return ['currency' => $currency, 'items' => $normalized];
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Log::error('MenuExtractionService: extraction failed', ['exception' => $e->getMessage()]);
+
             return ['currency' => null, 'items' => []];
         }
     }
