@@ -21,56 +21,28 @@ class ExtractMenuJob implements ShouldQueue
         public array $storagePaths,
     ) {}
 
-    public function handle(MenuExtractionService $menuExtractor): void
-    {
-        $waitress = Waitress::find($this->waitressId);
-
-        if (! $waitress) {
-            $this->deleteStoredFiles();
-
-            return;
-        }
-
-        $files = $this->buildUploadedFiles();
-
-        if (! empty($files)) {
-            $menu = $menuExtractor->extractMenuFromFiles($files);
-            $items = $menu['items'] ?? [];
-            foreach (array_values($items) as $position => $item) {
-                $waitress->menuItems()->create([
-                    'name' => $item['name'] ?? '',
-                    'category' => $item['category'] ?? 'Other',
-                    'unit_price' => (float) ($item['unit_price'] ?? 0),
-                    'position' => $position,
-                ]);
-            }
-            $updates = ['menu_image_paths' => $this->storagePaths];
-            if (array_key_exists('currency', $menu) && $menu['currency'] !== null && $menu['currency'] !== '') {
-                $updates['menu_currency'] = $menu['currency'];
-            }
-            $waitress->update($updates);
-        }
-    }
-
     /**
      * @return array<int, UploadedFile>
      */
     private function buildUploadedFiles(): array
     {
         $out = [];
+        $disk = Storage::disk();
 
         foreach ($this->storagePaths as $relativePath) {
-            $fullPath = Storage::path($relativePath);
-
-            if (! is_file($fullPath) || ! is_readable($fullPath)) {
+            if (! $disk->exists($relativePath)) {
                 continue;
             }
 
+            $content = $disk->get($relativePath);
+            $tmpPath = (string) tempnam(sys_get_temp_dir(), 'menu-extract-');
+            file_put_contents($tmpPath, $content);
+
             $name = basename($relativePath);
-            $mime = @mime_content_type($fullPath) ?: 'image/jpeg';
+            $mime = $disk->mimeType($relativePath) ?: 'image/jpeg';
 
             $out[] = new UploadedFile(
-                $fullPath,
+                $tmpPath,
                 $name,
                 $mime,
                 \UPLOAD_ERR_OK,
@@ -84,7 +56,47 @@ class ExtractMenuJob implements ShouldQueue
     private function deleteStoredFiles(): void
     {
         foreach ($this->storagePaths as $path) {
-            Storage::disk('local')->delete($path);
+            Storage::delete($path);
+        }
+    }
+
+    public function handle(MenuExtractionService $menuExtractor): void
+    {
+        $waitress = Waitress::find($this->waitressId);
+
+        if (! $waitress) {
+            $this->deleteStoredFiles();
+
+            return;
+        }
+
+        $files = $this->buildUploadedFiles();
+
+        try {
+            if (! empty($files)) {
+                $menu = $menuExtractor->extractMenuFromFiles($files);
+                $items = $menu['items'] ?? [];
+                foreach (array_values($items) as $position => $item) {
+                    $waitress->menuItems()->create([
+                        'name' => $item['name'] ?? '',
+                        'category' => $item['category'] ?? 'Other',
+                        'unit_price' => (float) ($item['unit_price'] ?? 0),
+                        'position' => $position,
+                    ]);
+                }
+                $updates = ['menu_image_paths' => $this->storagePaths];
+                if (array_key_exists('currency', $menu) && $menu['currency'] !== null && $menu['currency'] !== '') {
+                    $updates['menu_currency'] = $menu['currency'];
+                }
+                $waitress->update($updates);
+            }
+        } finally {
+            foreach ($files as $file) {
+                $path = $file->getRealPath();
+                if ($path !== false && is_file($path) && str_starts_with($path, sys_get_temp_dir())) {
+                    @unlink($path);
+                }
+            }
         }
     }
 }

@@ -143,12 +143,12 @@ class WaitressController extends Controller
         $menuFiles = $request->file('menu_files', []);
         if (count($menuFiles) > 0) {
             foreach ($menuFiles as $file) {
-                $paths[] = $file->store("waitresses/{$waitress->id}/menu-extraction", 'local');
+                $paths[] = $file->store("waitresses/{$waitress->id}/menu-extraction");
             }
         } else {
             $defaultMenuPath = public_path('menus/jays.jpeg');
             if (File::isFile($defaultMenuPath)) {
-                $paths[] = Storage::disk('local')->putFileAs(
+                $paths[] = Storage::putFileAs(
                     "waitresses/{$waitress->id}/menu-extraction",
                     new \Illuminate\Http\File($defaultMenuPath),
                     'jays.jpeg'
