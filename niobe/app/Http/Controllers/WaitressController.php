@@ -156,6 +156,7 @@ class WaitressController extends Controller
             }
         }
 
+        $paths = array_values(array_filter($paths, fn ($p) => is_string($p) && $p !== ''));
         if (count($paths) > 0) {
             ExtractMenuJob::dispatch($waitress->id, $paths);
         }

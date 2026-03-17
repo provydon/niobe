@@ -30,6 +30,10 @@ class ExtractMenuJob implements ShouldQueue
         $disk = Storage::disk();
 
         foreach ($this->storagePaths as $relativePath) {
+            $relativePath = is_string($relativePath) ? trim($relativePath) : '';
+            if ($relativePath === '') {
+                continue;
+            }
             if (! $disk->exists($relativePath)) {
                 continue;
             }
@@ -56,7 +60,10 @@ class ExtractMenuJob implements ShouldQueue
     private function deleteStoredFiles(): void
     {
         foreach ($this->storagePaths as $path) {
-            Storage::delete($path);
+            $path = is_string($path) ? trim($path) : '';
+            if ($path !== '') {
+                Storage::delete($path);
+            }
         }
     }
 
